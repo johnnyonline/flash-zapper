@@ -1,0 +1,53 @@
+# @version 0.4.1
+
+
+# @external
+# @view
+# def MCR() -> uint256:
+#     ...
+
+
+# @external
+# def addColl(trove_id: uint256, coll_amount: uint256):
+#     ...
+
+
+# @external
+# def withdrawColl(trove_id: uint256, amount: uint256):
+#     ...
+
+
+# @external
+# def withdrawBold(trove_id: uint256, amount: uint256, max_fee: uint256):
+#     ...
+
+
+# @external
+# def repayBold(trove_id: uint256, amount: uint256):
+#     ...
+
+
+@external
+@view
+def removeManagerReceiverOf(trove_id: uint256) -> (address, address):
+    ...
+
+
+# function adjustTrove(
+#         uint256 _troveId,
+#         uint256 _collChange,
+#         bool _isCollIncrease,
+#         uint256 _debtChange,
+#         bool isDebtIncrease,
+#         uint256 _maxUpfrontFee
+#     ) external;
+@external
+def adjustTrove(
+    troveId: uint256,
+    collChange: uint256,
+    isCollIncrease: bool,
+    debtChange: uint256,
+    isDebtIncrease: bool,
+    maxUpfrontFee: uint256,
+):
+    ...

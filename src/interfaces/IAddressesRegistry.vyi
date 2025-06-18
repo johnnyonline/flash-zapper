@@ -1,0 +1,31 @@
+# @version 0.4.1
+
+
+@external
+@view
+def troveNFT() -> address:
+    ...
+
+
+@external
+@view
+def collToken() -> address:
+    ...
+
+
+@external
+@view
+def priceFeed() -> address:
+    ...
+
+
+@external
+@view
+def troveManager() -> address:
+    ...
+
+
+@external
+@view
+def borrowerOperations() -> address:
+    ...

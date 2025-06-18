@@ -1,0 +1,6 @@
+# @version 0.4.1
+
+
+@external
+def fetchPrice() -> (uint256, bool):
+    ...

@@ -1,0 +1,14 @@
+# @version 0.4.1
+
+
+@external
+def exchange(i: int128, j: int128, dx: uint256, min_dy: uint256) -> uint256:
+    """
+    @notice Exchange tokens in the pool
+    @param i Index of the token to swap from
+    @param j Index of the token to swap to
+    @param dx Amount of token to swap from
+    @param min_dy Minimum amount of token to receive
+    @return dy Amount of token received
+    """
+    ...

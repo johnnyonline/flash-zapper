@@ -1,0 +1,29 @@
+# @version 0.4.1
+
+
+@external
+def exchange(i: int128, j: int128, dx: uint256, min_dy: uint256, receiver: address) -> uint256:
+    """
+    @notice Exchange tokens in the pool
+    @param i Index of the token to swap from
+    @param j Index of the token to swap to
+    @param dx Amount of token to swap from
+    @param min_dy Minimum amount of token to receive
+    @param receiver Address that will receive the swapped tokens
+    @return dy Amount of token received
+    """
+    ...
+
+
+@external
+def exchange_underlying(i: int128, j: int128, dx: uint256, min_dy: uint256, receiver: address) -> uint256:
+    """
+    @notice Perform an exchange between two underlying coins
+    @param i Index value for the underlying coin to send
+    @param j Index value of the underlying coin to receive
+    @param _dx Amount of `i` being exchanged
+    @param _min_dy Minimum amount of `j` to receive
+    @param _receiver Address that receives `j`
+    @return Actual amount of `j` received
+    """
+    ...

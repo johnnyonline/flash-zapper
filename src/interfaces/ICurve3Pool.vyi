@@ -1,0 +1,13 @@
+# @version 0.4.1
+
+
+@external
+def exchange(i: int128, j: int128, dx: uint256, min_dy: uint256):
+    """
+    @notice Exchange using wrapped native token by default
+    @param i Index value for the input coin
+    @param j Index value for the output coin
+    @param dx Amount of input coin being swapped in
+    @param min_dy Minimum amount of output coin to receive
+    """
+    ...

@@ -1,0 +1,20 @@
+# @version 0.4.1
+
+
+@view
+@external
+def getLatestTroveData(
+    _troveId: uint256,
+) -> (
+    uint256,  # entireDebt
+    uint256,  # entireColl
+    uint256,  # redistBoldDebtGain
+    uint256,  # redistCollGain
+    uint256,  # accruedInterest
+    uint256,  # recordedDebt
+    uint256,  # annualInterestRate
+    uint256,  # weightedRecordedDebt
+    uint256,  # accruedBatchManagementFee
+    uint256,  # lastInterestRateAdjTime
+):
+    ...

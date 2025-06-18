@@ -1,0 +1,34 @@
+# @version 0.4.1
+
+
+@external
+@view
+def COLLATERAL_TOKEN() -> address:
+    ...
+
+
+@external
+@view
+def TROVE_NFT() -> address:
+    ...
+
+
+@external
+def lever_up_to(
+    trove_id: uint256,
+    initial_collateral: uint256,
+    initial_usdaf: uint256,
+    target_debt: uint256,
+    min_debt: uint256,
+) -> uint256:
+    ...
+
+
+@external
+def lever_down_to(
+    trove_id: uint256,
+    target_debt: uint256,
+    min_remaining_repay: uint256,
+    min_final_collateral: uint256,
+) -> uint256:
+    ...
