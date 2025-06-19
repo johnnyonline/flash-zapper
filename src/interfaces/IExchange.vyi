@@ -3,13 +3,13 @@
 
 @external
 @view
-def BORROW_TOKEN() -> address:
+def TOKEN() -> address:
     ...
 
 
 @external
 @view
-def COLLATERAL_TOKEN() -> address:
+def PAIRED_WITH() -> address:
     ...
 
 

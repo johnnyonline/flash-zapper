@@ -1,10 +1,10 @@
 # @version 0.4.1
 
 """
-@title sfrxUSD <--> USDaf
+@title crvUSD <--> USDaf
 @license MIT
 @author asymmetry.finance
-@notice Swaps sfrxUSD for USDaf and vice versa
+@notice Swaps crvUSD for USDaf and vice versa
 """
 
 from ethereum.ercs import IERC20
@@ -47,27 +47,20 @@ implements: IExchange
 # ============================================================================================
 
 
-# USDaf/USDT Curve StableNG Pool
+# USDaf/USDC Curve StableNG Pool
 USDC_INDEX_USDAF_USDC_CURVE_POOL: constant(uint256) = 1
 USDAF_INDEX_USDAF_USDC_CURVE_POOL: constant(uint256) = 0
 USDAF_USDC_CURVE_POOL: constant(address) = 0x95591348FE9718bE8bfa3afcC9b017D9Ec18A7fa
 
-# Curve FRAX/USDC StableNG Pool
-FRAX_INDEX_FRAX_USDC_CURVE_POOL: constant(uint256) = 0
-USDC_INDEX_FRAX_USDC_CURVE_POOL: constant(uint256) = 1
-FRAX_USDC_CURVE_POOL: constant(address) = 0xDcEF968d416a41Cdac0ED8702fAC8128A64241A2
-
-# Curve FRAX/frxUSD StableNG Pool
-FRAX_INDEX_FRAX_FRXUSD_CURVE_POOL: constant(uint256) = 0
-FRXUSD_INDEX_FRAX_FRXUSD_CURVE_POOL: constant(uint256) = 1
-FRAX_FRXUSD_CURVE_POOL: constant(address) = 0xBBaf8B2837CBbc7146F5bC978D6F84db0BE1CAcc
+# crvUSD/USDC Curve StableNG Pool
+USDC_INDEX_CRVUSD_USDC_POOL: constant(uint256) = 0
+CRVUSD_INDEX_CRVUSD_USDC_POOL: constant(uint256) = 1
+CRVUSD_USDC_POOL: constant(address) = 0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E
 
 # Token addresses
 USDAF: constant(IERC20) = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA)
 USDC: constant(IERC20) = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)
-FRAX: constant(IERC20) = IERC20(0x853d955aCEf822Db058eb8505911ED77F175b99e)
-FRXUSD: constant(IERC20) = IERC20(0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29)
-SFRXUSD: constant(IERC4626) = IERC4626(0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6)
+CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 
 
 # ============================================================================================
@@ -85,11 +78,8 @@ def __init__(owner: address):
 
     self._max_approve(USDAF, USDAF_USDC_CURVE_POOL)
     self._max_approve(USDC, USDAF_USDC_CURVE_POOL)
-    self._max_approve(USDC, FRAX_USDC_CURVE_POOL)
-    self._max_approve(FRAX, FRAX_USDC_CURVE_POOL)
-    self._max_approve(FRAX, FRAX_FRXUSD_CURVE_POOL)
-    self._max_approve(FRXUSD, FRAX_FRXUSD_CURVE_POOL)
-    self._max_approve(FRXUSD, SFRXUSD.address)
+    self._max_approve(USDC, CRVUSD_USDC_POOL)
+    self._max_approve(CRVUSD, CRVUSD_USDC_POOL)
 
 
 # ============================================================================================
@@ -99,22 +89,22 @@ def __init__(owner: address):
 
 @external
 @view
-def BORROW_TOKEN() -> address:
+def TOKEN() -> address:
     """
-    @notice Returns the address of the borrow token
-    @return Address of the borrow token
+    @notice Returns the address of the token
+    @return Address of the token
     """
-    return USDAF.address
+    return CRVUSD.address
 
 
 @external
 @view
-def COLLATERAL_TOKEN() -> address:
+def PAIRED_WITH() -> address:
     """
-    @notice Returns the address of the collateral token
-    @return Address of the collateral token
+    @notice Returns the address of the paired with token
+    @return Address of the paired token
     """
-    return SFRXUSD.address
+    return USDAF.address
 
 
 # ============================================================================================
@@ -123,15 +113,15 @@ def COLLATERAL_TOKEN() -> address:
 
 
 @external
-def swap(amount: uint256, min_amount: uint256, from_af: bool) -> uint256:
+def swap(amount: uint256, min_amount: uint256, from_token: bool) -> uint256:
     """
-    @notice Swaps between USDaf and collateral
+    @notice Swaps between crvUSD and the paired token
     @param amount Amount of tokens to swap
     @param min_amount Minimum amount of tokens to receive
-    @param from_af True if swapping from USDaf to collateral, False if swapping from collateral to USDaf
+    @param from_token If true, swap from crvUSD to the paired token, otherwise swap from the paired token to crvUSD
     @return Amount of tokens received
     """
-    return (self._swap_from(amount, min_amount) if from_af else self._swap_to(amount, min_amount))
+    return (self._swap_from(amount, min_amount) if from_token else self._swap_to(amount, min_amount))
 
 
 # ============================================================================================
@@ -146,37 +136,26 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     @param min_amount Minimum amount of collateral to receive
     @return Amount of collateral received
     """
-    # Pull USDaf
-    extcall USDAF.transferFrom(msg.sender, self, amount, default_return_value=True)
+    # Pull crvUSD
+    extcall CRVUSD.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # USDaf --> USDC
-    amount_out: uint256 = curve_stableswap.swap_underlying(
-        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
-        USDC_INDEX_USDAF_USDC_CURVE_POOL,
+    # crvUSD --> USDC
+    amount_out: uint256 = curve_stableswap.swap(
+        CRVUSD_INDEX_CRVUSD_USDC_POOL,
+        USDC_INDEX_CRVUSD_USDC_POOL,
         amount,
+        CRVUSD_USDC_POOL,
+        self,
+    )
+
+    # USDC --> USDaf
+    amount_out = curve_stableswap.swap_underlying(
+        USDC_INDEX_USDAF_USDC_CURVE_POOL,
+        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
+        amount_out,
         USDAF_USDC_CURVE_POOL,
-        self,
+        msg.sender,
     )
-
-    # USDC --> FRAX
-    amount_out = curve_stableswap.swapOld(
-        USDC_INDEX_FRAX_USDC_CURVE_POOL,
-        FRAX_INDEX_FRAX_USDC_CURVE_POOL,
-        amount_out,
-        FRAX_USDC_CURVE_POOL,
-    )
-
-    # FRAX --> frxUSD
-    amount_out = curve_stableswap.swap(
-        FRAX_INDEX_FRAX_FRXUSD_CURVE_POOL,
-        FRXUSD_INDEX_FRAX_FRXUSD_CURVE_POOL,
-        amount_out,
-        FRAX_FRXUSD_CURVE_POOL,
-        self,
-    )
-
-    # frxUSD --> sfrxUSD
-    amount_out = extcall SFRXUSD.deposit(amount_out, msg.sender)
 
     assert amount_out >= min_amount, "slippage rekt you"
 
@@ -190,32 +169,24 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     @param min_amount Minimum amount of USDaf to receive
     @return Amount of USDaf received
     """
-    # Pull sfrxUSD && --> frxUSD
-    extcall SFRXUSD.redeem(amount, self, msg.sender)
+    # Pull USDaf
+    extcall USDAF.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # frxUSD --> FRAX
-    amount_out: uint256 = curve_stableswap.swap(
-        FRXUSD_INDEX_FRAX_FRXUSD_CURVE_POOL,
-        FRAX_INDEX_FRAX_FRXUSD_CURVE_POOL,
+    # USDaf --> USDC
+    amount_out: uint256 = curve_stableswap.swap_underlying(
+        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
+        USDC_INDEX_USDAF_USDC_CURVE_POOL,
         amount,
-        FRAX_FRXUSD_CURVE_POOL,
+        USDAF_USDC_CURVE_POOL,
         self,
     )
 
-    # FRAX --> USDC
-    amount_out = curve_stableswap.swapOld(
-        FRAX_INDEX_FRAX_USDC_CURVE_POOL,
-        USDC_INDEX_FRAX_USDC_CURVE_POOL,
+    # USDC --> crvUSD
+    amount_out = curve_stableswap.swap(
+        USDC_INDEX_CRVUSD_USDC_POOL,
+        CRVUSD_INDEX_CRVUSD_USDC_POOL,
         amount_out,
-        FRAX_USDC_CURVE_POOL,
-    )
-
-    # USDC --> USDaf
-    amount_out = curve_stableswap.swap_underlying(
-        USDC_INDEX_USDAF_USDC_CURVE_POOL,
-        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
-        amount_out,
-        USDAF_USDC_CURVE_POOL,
+        CRVUSD_USDC_POOL,
         msg.sender,
     )
 

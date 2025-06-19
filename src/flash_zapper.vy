@@ -47,7 +47,7 @@ event WrappedLeverageZapperSet:
 
 event ExchangeSet:
     exchange: address
-    borrow_token: address
+    is_collateral: bool
 
 
 # ============================================================================================
@@ -75,7 +75,7 @@ LEVER_UP_CALLDATA_SIZE: constant(uint256) = ENCODED_LEVER_UP_ARGS_SIZE + SELECTO
 
 # Token addresses
 USDAF: public(constant(IERC20)) = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA)
-CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
+CRVUSD: public(constant(IERC20)) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 
 # Flashloan provider
 FLASH_LENDER: public(constant(IERC3156FlashLender)) = IERC3156FlashLender(0x26dE7861e213A5351F6ED767d00e0839930e9eE1)
@@ -94,8 +94,8 @@ BORROWER_OPERATIONS: public(immutable(IBorrowerOperations))
 is_wrapped_leverage_zapper_set: public(bool)
 wrapped_leverage_zapper: public(address)
 
-crvusd_exchange: public(IExchange)
 usdaf_exchange: public(IExchange)
+collateral_exchange: public(IExchange)
 
 
 # ============================================================================================
@@ -106,15 +106,15 @@ usdaf_exchange: public(IExchange)
 @deploy
 def __init__(
     owner: address,
-    crvusd_exchange: address,
     usdaf_exchange: address,
+    collateral_exchange: address,
     addresses_registry: address,
 ):
     """
     @notice Initialize the contract
     @param owner Address of the owner
-    @param crvusd_exchange Address of the crvUSD exchange contract
-    @param usdaf_exchange Address of the USDaf exchange contract
+    @param usdaf_exchange Address of the crvUSD/USDaf exchange contract
+    @param collateral_exchange Address of the crvUSD/collateral exchange contract
     @param addresses_registry Address of the AddressesRegistry contract
     """
     ownable.__init__(owner)
@@ -124,8 +124,8 @@ def __init__(
     TROVE_NFT = ITroveNFT(staticcall _addresses_registry.troveNFT())
     BORROWER_OPERATIONS = IBorrowerOperations(staticcall _addresses_registry.borrowerOperations())
 
-    self._set_exchange(IExchange(usdaf_exchange), USDAF, COLLATERAL_TOKEN)
-    self._set_exchange(IExchange(crvusd_exchange), CRVUSD, COLLATERAL_TOKEN)
+    self._set_exchange(IExchange(usdaf_exchange), False)
+    self._set_exchange(IExchange(collateral_exchange), True, COLLATERAL_TOKEN)
 
     extcall COLLATERAL_TOKEN.approve(BORROWER_OPERATIONS.address, max_value(uint256), default_return_value=True)
 
@@ -149,14 +149,14 @@ def set_wrapped_leverage_zapper(zapper: address):
 
 
 @external
-def set_exchange(exchange: IExchange, borrow_token: IERC20):
+def set_exchange(exchange: IExchange, is_collateral: bool):
     """
     @notice Sets the address of the exchange contract
     @param exchange Address of the exchange contract
-    @param borrow_token Address of the borrow token
+    @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
     """
     ownable._check_owner()
-    self._set_exchange(exchange, borrow_token)
+    self._set_exchange(exchange, is_collateral)
 
 
 # ============================================================================================
@@ -175,12 +175,14 @@ def lever_up_trove(
     @notice Leverages up a trove using a flash loan
     @dev The zapper must be the remove manager and receiver of the trove and the caller must be the owner of it
     @param trove_id ID of the trove to leverage up
-    @param flash_loan_amount Amount of crvUSD to borrow
-    @param usdaf_amount Amount of USDaf to add to the trove
+    @param flash_loan_amount Amount of crvUSD to borrow, will be swapped for collateral
+    @param usdaf_amount Amount of USDaf debt to add to the trove
     @param max_upfront_fee Maximum upfront fee to pay for the operation
     """
     self._check_caller_is_owner(trove_id)
     self._check_zapper_is_remove_manager_and_receiver(trove_id)
+
+    before: uint256 = staticcall CRVUSD.balanceOf(self)
 
     selector: Bytes[SELECTOR_SIZE] = method_id("_on_lever_up_trove()")
     encoded_args: Bytes[ENCODED_LEVER_UP_ARGS_SIZE] = abi_encode(
@@ -188,6 +190,8 @@ def lever_up_trove(
     )
     data: Bytes[LEVER_UP_CALLDATA_SIZE] = concat(selector, encoded_args)
     extcall FLASH_LENDER.flashLoan(self, CRVUSD.address, flash_loan_amount, data)
+
+    self._return_leftovers(before)
 
 
 def _on_lever_up_trove(
@@ -211,7 +215,7 @@ def _on_lever_up_trove(
     extcall BORROWER_OPERATIONS.adjustTrove(trove_id, collateral_amount, True, usdaf_amount, True, max_upfront_fee)
 
     # USDaf --> crvUSD
-    self._swap(usdaf_amount, True, False)
+    amount_out: uint256 = self._swap(usdaf_amount, False, False)
 
     # Make sure we can repay the flash loan
     assert staticcall CRVUSD.balanceOf(self) >= flash_loan_amount, "!repay"
@@ -291,47 +295,60 @@ def _check_zapper_is_remove_manager_and_receiver(trove_id: uint256):
 # ============================================================================================
 
 
-def _set_exchange(exchange: IExchange, borrow_token: IERC20, collateral_token: IERC20 = COLLATERAL_TOKEN):
+def _set_exchange(exchange: IExchange, is_collateral: bool, collateral_token: IERC20 = COLLATERAL_TOKEN):
     """
     @notice Sets the address of the exchange contract
     @param exchange Address of the exchange contract
-    @param borrow_token Address of the borrow token
+    @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
     @param collateral_token Address of the collateral token
     """
-    assert (staticcall exchange.BORROW_TOKEN() == borrow_token.address), "!borrow"
-    assert (staticcall exchange.COLLATERAL_TOKEN() == collateral_token.address), "!collateral"
+    assert (staticcall exchange.TOKEN() == CRVUSD.address), "!token"
 
+    paired_with: IERC20 = IERC20(staticcall exchange.PAIRED_WITH())
     old_exchange: IExchange = empty(IExchange)
-    if borrow_token == CRVUSD:
-        old_exchange = self.crvusd_exchange
-        self.crvusd_exchange = exchange
-    elif borrow_token == USDAF:
+    if is_collateral:
+        assert (paired_with.address == collateral_token.address), "!collateral"
+        old_exchange = self.collateral_exchange
+        self.collateral_exchange = exchange
+    else:
+        assert (paired_with.address == USDAF.address), "!usdaf"
         old_exchange = self.usdaf_exchange
         self.usdaf_exchange = exchange
-    else:
-        raise "Unsupported borrow token"
 
     assert (old_exchange == empty(IExchange) or old_exchange != exchange), "!old_exchange"
 
     if old_exchange != empty(IExchange):
-        extcall borrow_token.approve(old_exchange.address, 0, default_return_value=True)
-        extcall collateral_token.approve(old_exchange.address, 0, default_return_value=True)
+        extcall CRVUSD.approve(old_exchange.address, 0, default_return_value=True)
+        extcall paired_with.approve(old_exchange.address, 0, default_return_value=True)
 
-    extcall borrow_token.approve(exchange.address, max_value(uint256), default_return_value=True)
-    extcall collateral_token.approve(exchange.address, max_value(uint256), default_return_value=True)
+    extcall CRVUSD.approve(exchange.address, max_value(uint256), default_return_value=True)
+    extcall paired_with.approve(exchange.address, max_value(uint256), default_return_value=True)
 
-    log ExchangeSet(exchange=exchange.address, borrow_token=borrow_token.address)
+    log ExchangeSet(exchange=exchange.address, is_collateral=is_collateral)
 
 
-def _swap(amount: uint256, from_borrow: bool, from_crvusd: bool) -> uint256:
+def _swap(amount: uint256, is_collateral: bool, from_crvusd: bool) -> uint256:
     """
-    @notice Swaps between crvUSD or USDaf and the collateral token
+    @notice Swaps between crvUSD and USDaf or the collateral token
     @param amount Amount of tokens to swap
-    @param from_borrow True if swapping from a borrowed token to collateral, False otherwise
-    @param from_crvusd True if swapping from crvUSD, False for USDaf
+    @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
+    @param from_crvusd True if swapping from crvUSD, False otherwise
     @return Amount of tokens received
     """
-    if from_crvusd:
-        return extcall self.crvusd_exchange.swap(amount, 0, from_borrow)
-    else:
-        return extcall self.usdaf_exchange.swap(amount, 0, from_borrow)
+    return (
+        extcall self.collateral_exchange.swap(amount, 0, from_crvusd)
+        if is_collateral
+        else extcall self.usdaf_exchange.swap(amount, 0, from_crvusd)
+    )
+
+
+def _return_leftovers(before: uint256):
+    """
+    @notice Transfers back any leftover crvUSD as USDaf to the user
+    @param before The crvUSD balance before the flash loan
+    """
+    after: uint256 = staticcall CRVUSD.balanceOf(self)
+    if after > before:
+        leftovers: uint256 = after - before
+        leftovers = self._swap(leftovers, False, True)
+        extcall USDAF.transfer(msg.sender, leftovers, default_return_value=True)
