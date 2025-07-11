@@ -20,6 +20,7 @@ def swap(
     to_index: uint256,
     amount_in: uint256,
     pool: address,
+    receiver: address,
 ) -> uint256:
     """
     @notice Swaps tokens on a Curve StableNG pool
@@ -27,6 +28,7 @@ def swap(
     @param to_index Index of the token to swap to
     @param amount_in Amount of the token to swap
     @param pool Address of the Curve StableNG pool
+    @param receiver Address that will receive the swapped tokens
     @return Amount of the token received after the swap
     """
     return extcall ICurveTricrypto(pool).exchange(
@@ -34,4 +36,6 @@ def swap(
         to_index,
         amount_in,
         0,  # min_amount_out
+        False,  # use_eth
+        receiver,
     )

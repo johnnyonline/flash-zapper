@@ -96,15 +96,15 @@ contract Deploy is Script {
     // uint256 public susde_branchIndex = 4;
     // string public susde_exchangeName = "susde";
 
-    // // tBTC
-    // address public tbtc_addressesRegistry = 0xc693C91c855f4B51957f8ea221534538232F0f98;
-    // address public tbtc_collateralToken = 0x18084fbA666a33d37592fA2633fD49a74DD93a88;
-    // address public tbtc_priceOracle = 0xCe1Ca28e54fD3BD431F893DDFFFa1bd619C0517e;
-    // address public tbtc_troveManager = 0x64454C84Dc289C7CDe7E2eE2F87Ae1196bC9cD36;
-    // address public tbtc_borrowerOperations = 0x40785101e6BB3c546A7B07b8F883ef79763932EF;
-    // address public tbtc_sortedTroves = 0x2BD5a16F63480454A8302aD640323AB765A96930;
-    // uint256 public tbtc_branchIndex = 5;
-    // string public tbtc_exchangeName = "tbtc";
+    // tBTC
+    address public tbtc_addressesRegistry = 0xc693C91c855f4B51957f8ea221534538232F0f98;
+    address public tbtc_collateralToken = 0x18084fbA666a33d37592fA2633fD49a74DD93a88;
+    address public tbtc_priceOracle = 0xCe1Ca28e54fD3BD431F893DDFFFa1bd619C0517e;
+    address public tbtc_troveManager = 0x64454C84Dc289C7CDe7E2eE2F87Ae1196bC9cD36;
+    address public tbtc_borrowerOperations = 0x40785101e6BB3c546A7B07b8F883ef79763932EF;
+    address public tbtc_sortedTroves = 0x2BD5a16F63480454A8302aD640323AB765A96930;
+    uint256 public tbtc_branchIndex = 5;
+    string public tbtc_exchangeName = "tbtc";
 
     // // WBTC18
     // address public wbtc18_addressesRegistry = 0x2AFF30744843aF04F68286Fa4818d44e93b80561;
@@ -253,23 +253,23 @@ contract Deploy is Script {
         //         })
         //     );
 
-        //     // tBTC
-        //     params.push(
-        //         Params({
-        //             exchange: address(0),
-        //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
-        //             addressesRegistry: tbtc_addressesRegistry,
-        //             collateralToken: tbtc_collateralToken,
-        //             priceOracle: tbtc_priceOracle,
-        //             troveManager: tbtc_troveManager,
-        //             borrowerOperations: tbtc_borrowerOperations,
-        //             sortedTroves: tbtc_sortedTroves,
-        //             branchIndex: tbtc_branchIndex,
-        //             ltv: BTC_LTV,
-        //             exchangeName: tbtc_exchangeName
-        //         })
-        //     );
+        // tBTC
+        params.push(
+            Params({
+                exchange: address(0),
+                flashZapper: address(0),
+                wrappedFlashZapper: address(0),
+                addressesRegistry: tbtc_addressesRegistry,
+                collateralToken: tbtc_collateralToken,
+                priceOracle: tbtc_priceOracle,
+                troveManager: tbtc_troveManager,
+                borrowerOperations: tbtc_borrowerOperations,
+                sortedTroves: tbtc_sortedTroves,
+                branchIndex: tbtc_branchIndex,
+                ltv: BTC_LTV,
+                exchangeName: tbtc_exchangeName
+            })
+        );
 
         //     // WBTC18
         //     params.push(

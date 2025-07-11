@@ -10,4 +10,11 @@ interface IFlashZapper {
         uint256 max_upfront_fee
     ) external;
 
+    function lever_down_trove(
+        uint256 trove_id,
+        uint256 flash_loan_amount,
+        uint256 min_usdaf_amount,
+        uint256 collateral_amount
+    ) external;
+
 }

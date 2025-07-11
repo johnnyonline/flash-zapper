@@ -1,20 +1,19 @@
 # @version 0.4.1
 
 """
-@title crvUSD <--> scrvUSD
+@title crvUSD <--> tBTC
 @license MIT
 @author asymmetry.finance
-@notice Swaps crvUSD for scrvUSD and vice versa
+@notice Swaps crvUSD for tBTC and vice versa
 """
 
 from ethereum.ercs import IERC20
-from ethereum.ercs import IERC4626
 
 from ..interfaces import IExchange
 
 from ..periphery import ownable_2step as ownable
 from ..periphery import sweep
-
+from ..periphery import curve_tricrypto_swapper as curve_tricrypto
 
 # ============================================================================================
 # Modules
@@ -46,9 +45,14 @@ implements: IExchange
 # ============================================================================================
 
 
+# TricryptoLLAMA Pool
+CRVUSD_INDEX_TRICRYPTO: constant(uint256) = 0
+TBTC_INDEX_TRICRYPTO: constant(uint256) = 1
+TRICRYPTO_POOL: constant(address) = 0x2889302a794dA87fBF1D6Db415C1492194663D13
+
 # Token addresses
 CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
-SCRVUSD: constant(IERC4626) = IERC4626(0x0655977FEb2f289A4aB78af67BAB0d17aAb84367)
+TBTC: constant(IERC20) = IERC20(0x18084fbA666a33d37592fA2633fD49a74DD93a88)
 
 
 # ============================================================================================
@@ -63,7 +67,8 @@ def __init__(owner: address):
     @param owner Address of the owner
     """
     ownable.__init__(owner)
-    self._max_approve(CRVUSD, SCRVUSD.address)
+    self._max_approve(CRVUSD, TRICRYPTO_POOL)
+    self._max_approve(TBTC, TRICRYPTO_POOL)
 
 
 # ============================================================================================
@@ -88,7 +93,7 @@ def PAIRED_WITH() -> address:
     @notice Returns the address of the paired with token
     @return Address of the paired token
     """
-    return SCRVUSD.address
+    return TBTC.address
 
 
 # ============================================================================================
@@ -120,9 +125,20 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     @param min_amount Minimum amount of collateral to receive
     @return Amount of collateral received
     """
+    # Pull crvUSD
     extcall CRVUSD.transferFrom(msg.sender, self, amount, default_return_value=True)
-    amount_out: uint256 = extcall SCRVUSD.deposit(amount, msg.sender)
+
+    # crvUSD --> tBTC
+    amount_out: uint256 = curve_tricrypto.swap(
+        CRVUSD_INDEX_TRICRYPTO,
+        TBTC_INDEX_TRICRYPTO,
+        amount,
+        TRICRYPTO_POOL,
+        msg.sender,
+    )
+
     assert amount_out >= min_amount, "slippage rekt you"
+
     return amount_out
 
 
@@ -133,8 +149,20 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     @param min_amount Minimum amount of token to receive
     @return Amount of token received
     """
-    amount_out: uint256 = extcall SCRVUSD.redeem(amount, msg.sender, msg.sender)
+    # Pull tBTC
+    extcall TBTC.transferFrom(msg.sender, self, amount, default_return_value=True)
+
+    # tBTC --> crvUSD
+    amount_out: uint256 = curve_tricrypto.swap(
+        TBTC_INDEX_TRICRYPTO,
+        CRVUSD_INDEX_TRICRYPTO,
+        amount,
+        TRICRYPTO_POOL,
+        msg.sender,
+    )
+
     assert amount_out >= min_amount, "slippage rekt you"
+
     return amount_out
 
 

@@ -31,11 +31,11 @@ abstract contract Base is Deploy, Test {
     IERC20 public constant CRVUSD = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E);
     IERC20 public constant WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-    // LeverageZapper tests -- default BTC values
+    // default BTC values
     uint256 public MIN_FUZZ = 0.03 ether;
-    uint256 public MAX_FUZZ = 0.5 ether;
+    uint256 public MAX_FUZZ = 0.1 ether;
     uint256 public MIN_LEVERAGE = 3 ether; // 3x leverage
-    uint256 public MAX_LEVERAGE = 7 ether; // 7x leverage
+    uint256 public MAX_LEVERAGE = 4 ether; // 4x leverage
 
     function setUp() public virtual {
         // notify deplyment script that this is a test

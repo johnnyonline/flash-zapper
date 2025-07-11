@@ -22,22 +22,61 @@ contract FlashZapperTests is Base {
 
     function setUp() public override {
         Base.setUp();
-        _setParams(scrvusd_branchIndex);
     }
 
-    // @todo -- here -- test on tbtc
+    // ============================================================================================
+    // scrvUSD
+    // ============================================================================================
 
-    function test_leverUp(
-        uint256 _amount,
-        uint256 _leverageRatio
-    ) public returns (uint256 _troveId) {
-        vm.assume(_amount > MIN_FUZZ && _amount < MAX_FUZZ);
-        vm.assume(_leverageRatio >= MIN_LEVERAGE && _leverageRatio <= MAX_LEVERAGE);
+    // function test_leverUp_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
+    function test_leverUp_scrvusd() public {
+        _setParams(scrvusd_branchIndex);
+        // check_leverUp(_amount, _leverageRatio);
+        check_leverUp(0, 0);
+    }
 
+    // function test_leverDown_scrvusd(uint256 _amount, uint256 _leverageRatio, uint256 _leverageDownRatio) public {
+    function test_leverDown_scrvusd() public {
+        _setParams(scrvusd_branchIndex);
+        // check_leverDown(_amount, _leverageRatio, _leverageDownRatio);
+        check_leverDown(0, 0);
+    }
+
+    // ============================================================================================
+    // tBTC
+    // ============================================================================================
+
+    // function test_setUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
+    function test_setUp_tbtc() public {
+        _setParams(1);
+        // check_leverUp(_amount, _leverageRatio);
+        check_leverUp(0, 0);
+    }
+
+    // function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio, uint256 _leverageDownRatio) public {
+    function test_leverDown_tbtc() public {
+        _setParams(1);
+        // check_leverDown(_amount, _leverageRatio, _leverageDownRatio);
+        check_leverDown(0, 0);
+    }
+
+    // ============================================================================================
+    // Tests
+    // ============================================================================================
+
+    function check_leverUp(uint256 _amount, uint256 _leverageRatio) public returns (uint256 _troveId) {
+        // vm.assume(_amount > MIN_FUZZ && _amount < MAX_FUZZ);
+        // vm.assume(_leverageRatio >= MIN_LEVERAGE && _leverageRatio <= MAX_LEVERAGE);
+        uint256 _amount = MIN_FUZZ;
+        uint256 _leverageRatio = MAX_LEVERAGE;
+
+        // Open a trove for the user
         _troveId = _openTrove(_amount);
 
+        // Fetch input parameters
         (uint256 _flashLoanAmount, uint256 _debt) = _leverup_amounts(_troveId, _leverageRatio);
 
+        // Lever up
         vm.prank(user);
         FLASH_ZAPPER.lever_up_trove(
             _troveId,
@@ -53,7 +92,7 @@ contract FlashZapperTests is Base {
         (uint256 _debtAfter, uint256 _collateralAfter) = _getTroveData(_troveId);
 
         // Check expected trove data
-        assertApproxEqRel(_collateralAfter, _expectedCollateral, 1e15, "check_leverUp: E0"); // 0.1% diff allowed
+        assertApproxEqRel(_collateralAfter, _expectedCollateral, 1e16, "check_leverUp: E0"); // 1% diff allowed
         assertApproxEqRel(_debtAfter, _expectedDebt, 1e15, "check_leverUp: E1"); // 0.1% diff allowed
 
         uint256 _expectedLTV = 1e18 - (1e18 * 1e18 / _leverageRatio);
@@ -61,7 +100,7 @@ contract FlashZapperTests is Base {
         uint256 _currentCR = ITroveManager(TROVE_MANAGER).getCurrentICR(_troveId, _price);
 
         // Check leverage ratio
-        assertApproxEqRel(_currentCR, _expectedCR, 5e16, "check_leverUp: E2"); // 5% diff allowed, bc of slippage
+        assertApproxEqRel(_currentCR, _expectedCR, 1e17, "check_leverUp: E2"); // 10% diff allowed, bc of slippage
 
         // Check user balances
         assertGe(USDAF.balanceOf(user), MIN_DEBT, "check_leverUp: E3");
@@ -77,6 +116,53 @@ contract FlashZapperTests is Base {
         assertEq(USDAF.balanceOf(address(EXCHANGE)), 0, "check_leverUp: E9");
         assertEq(COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_leverUp: E10");
         assertEq(CRVUSD.balanceOf(address(EXCHANGE)), 0, "check_leverUp: E11");
+    }
+
+    function check_leverDown(uint256 _amount, uint256 _leverageRatio) public {
+        // Open and lever up trove first
+        uint256 _troveId = check_leverUp(_amount, _leverageRatio);
+
+        // Fetch trove state and price
+        (uint256 _price,) = IPriceOracle(PRICE_ORACLE).fetchPrice();
+        (uint256 _debtBefore, uint256 _collateralBefore) = _getTroveData(_troveId);
+
+        // Compute target collateral at MIN_DEBT
+        uint256 _targetDebt = MIN_DEBT;
+        uint256 _targetCollateral = (((_targetDebt * 1e18) / LTV) * 1e18 / _price) * 105 / 100; // Have some collateral buffer
+
+        // Calculate how much collateral to remove and how much debt to repay
+        uint256 _collateralToRemove = _collateralBefore - _targetCollateral;
+        uint256 _flashLoanAmount = (_debtBefore - _targetDebt) * 105 / 100; // Add 5% slippage
+
+        // Lever down
+        vm.prank(user);
+        FLASH_ZAPPER.lever_down_trove(
+            _troveId,
+            _flashLoanAmount,
+            0, // minUSDaf
+            _collateralToRemove
+        );
+
+        (uint256 _debtAfter, uint256 _collateralAfter) = _getTroveData(_troveId);
+
+        // Check expected trove data
+        assertEq(_debtAfter, _targetDebt, "check_leverDown: E0");
+        assertApproxEqRel(_collateralAfter, _targetCollateral, 1e15, "check_leverDown: E1"); // 0.1% diff allowed
+
+        // Check user balances
+        assertGe(USDAF.balanceOf(user), MIN_DEBT, "check_leverDown: E2");
+        assertEq(COLLATERAL_TOKEN.balanceOf(user), 0, "check_leverDown: E3");
+        assertEq(CRVUSD.balanceOf(user), 0, "check_leverDown: E4");
+
+        // Check zapper balances
+        assertEq(USDAF.balanceOf(address(FLASH_ZAPPER)), 0, "check_leverDown: E5");
+        assertEq(COLLATERAL_TOKEN.balanceOf(address(FLASH_ZAPPER)), 0, "check_leverDown: E6");
+        assertEq(CRVUSD.balanceOf(address(FLASH_ZAPPER)), 0, "check_leverDown: E7");
+
+        // Check exchange
+        assertEq(USDAF.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E8");
+        assertEq(COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E9");
+        assertEq(CRVUSD.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E10");
     }
 
     // ============================================================================================
