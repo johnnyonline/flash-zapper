@@ -6,7 +6,7 @@
 @author asymmetry.finance
 @notice Leverages up and down USDaf positions using a flash loan
 """
-
+# @todo -- dont allow to update exchange
 from ethereum.ercs import IERC20
 
 from interfaces import IExchange

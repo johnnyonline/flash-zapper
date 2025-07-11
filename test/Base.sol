@@ -32,11 +32,10 @@ abstract contract Base is Deploy, Test {
     IERC20 public constant WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     // LeverageZapper tests -- default BTC values
-    uint256 public MIN_FUZZ_ = 0.03 ether;
-    uint256 public MAX_FUZZ_ = 0.5 ether;
-
-    uint256 public constant MIN_FUZZ = 0.01 ether;
-    uint256 public constant MAX_FUZZ = 1_000_000 ether;
+    uint256 public MIN_FUZZ = 0.03 ether;
+    uint256 public MAX_FUZZ = 0.5 ether;
+    uint256 public MIN_LEVERAGE = 3 ether; // 3x leverage
+    uint256 public MAX_LEVERAGE = 7 ether; // 7x leverage
 
     function setUp() public virtual {
         // notify deplyment script that this is a test
@@ -71,8 +70,10 @@ abstract contract Base is Deploy, Test {
         EXCHANGE_NAME = p.exchangeName;
 
         if (LTV == USD_LTV) {
-            MIN_FUZZ_ = 3000 ether;
-            MAX_FUZZ_ = 10_000 ether;
+            MIN_FUZZ = 3000 ether;
+            MAX_FUZZ = 10_000 ether;
+            MIN_LEVERAGE = 3 ether; // 3x leverage
+            MAX_LEVERAGE = 7 ether; // 7x leverage
         }
 
         // if (BRANCH_INDEX == wbtc18_branchIndex || BRANCH_INDEX == cbbtc18_branchIndex) {

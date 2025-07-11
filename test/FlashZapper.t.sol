@@ -25,12 +25,14 @@ contract FlashZapperTests is Base {
         _setParams(scrvusd_branchIndex);
     }
 
+    // @todo -- here -- test on tbtc
+
     function test_leverUp(
-        uint256 _amount
+        uint256 _amount,
+        uint256 _leverageRatio
     ) public returns (uint256 _troveId) {
-        vm.assume(_amount > MIN_FUZZ_ && _amount < MAX_FUZZ_);
-        _amount = MIN_FUZZ_; // 3,000
-        uint256 _leverageRatio = 8 * 1e18;
+        vm.assume(_amount > MIN_FUZZ && _amount < MAX_FUZZ);
+        vm.assume(_leverageRatio >= MIN_LEVERAGE && _leverageRatio <= MAX_LEVERAGE);
 
         _troveId = _openTrove(_amount);
 
@@ -54,11 +56,12 @@ contract FlashZapperTests is Base {
         assertApproxEqRel(_collateralAfter, _expectedCollateral, 1e15, "check_leverUp: E0"); // 0.1% diff allowed
         assertApproxEqRel(_debtAfter, _expectedDebt, 1e15, "check_leverUp: E1"); // 0.1% diff allowed
 
-        uint256 expectedCR = 1e18 * 1e18 / LTV;
+        uint256 _expectedLTV = 1e18 - (1e18 * 1e18 / _leverageRatio);
+        uint256 _expectedCR = 1e18 * 1e18 / _expectedLTV;
         uint256 _currentCR = ITroveManager(TROVE_MANAGER).getCurrentICR(_troveId, _price);
 
         // Check leverage ratio
-        assertApproxEqRel(_currentCR, expectedCR, 1e16, "check_leverUp: E2"); // 1% diff allowed
+        assertApproxEqRel(_currentCR, _expectedCR, 5e16, "check_leverUp: E2"); // 5% diff allowed, bc of slippage
 
         // Check user balances
         assertGe(USDAF.balanceOf(user), MIN_DEBT, "check_leverUp: E3");
