@@ -6,7 +6,7 @@
 @author asymmetry.finance
 @notice Leverages up and down USDaf positions using a flash loan
 """
-
+# @todo -- make sure retrun_leftovers actually makes sense
 from ethereum.ercs import IERC20
 
 from interfaces import IExchange
@@ -48,9 +48,9 @@ MAX_FLASHLOAN_CALLBACK_DATA_SIZE: constant(uint256) = 10**5
 # Selector
 SELECTOR_SIZE: constant(uint256) = 4
 
-# # Open trove
-# ENCODED_OPEN_TROVE_ARGS_SIZE: constant(uint256) = 416
-# OPEN_TROVE_CALLDATA_SIZE: constant(uint256) = ENCODED_OPEN_TROVE_ARGS_SIZE + SELECTOR_SIZE
+# Open trove
+ENCODED_OPEN_TROVE_ARGS_SIZE: constant(uint256) = 288
+OPEN_TROVE_CALLDATA_SIZE: constant(uint256) = ENCODED_OPEN_TROVE_ARGS_SIZE + SELECTOR_SIZE
 
 # Lever up
 ENCODED_LEVER_UP_ARGS_SIZE: constant(uint256) = 128
@@ -60,9 +60,13 @@ LEVER_UP_CALLDATA_SIZE: constant(uint256) = ENCODED_LEVER_UP_ARGS_SIZE + SELECTO
 ENCODED_LEVER_DOWN_ARGS_SIZE: constant(uint256) = 128
 LEVER_DOWN_CALLDATA_SIZE: constant(uint256) = ENCODED_LEVER_DOWN_ARGS_SIZE + SELECTOR_SIZE
 
+# WETH gas compensation needed for opening a trove
+ETH_GAS_COMPENSATION: constant(uint256) = as_wei_value(0.0375, "ether")
+
 # Token addresses
 USDAF: public(constant(IERC20)) = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA)
 CRVUSD: public(constant(IERC20)) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
+WETH: public(constant(IERC20)) = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
 
 # Flashloan provider
 FLASH_LENDER: public(constant(IERC3156FlashLender)) = IERC3156FlashLender(0x26dE7861e213A5351F6ED767d00e0839930e9eE1)
@@ -114,6 +118,7 @@ def __init__(
     self._set_exchange(IExchange(usdaf_exchange), False)
     self._set_exchange(IExchange(collateral_exchange), True)
 
+    extcall WETH.approve(BORROWER_OPERATIONS.address, max_value(uint256), default_return_value=True)
     extcall COLLATERAL_TOKEN.approve(BORROWER_OPERATIONS.address, max_value(uint256), default_return_value=True)
 
 
@@ -135,8 +140,103 @@ def set_wrapped_leverage_zapper(zapper: address):
 
 
 # ============================================================================================
-# Open trove and lever up
+# Open leveraged
 # ============================================================================================
+
+
+@external
+def open_leveraged_trove(
+    owner: address,
+    owner_index: uint256,
+    initial_collateral_amount: uint256,
+    flash_loan_amount: uint256,
+    usdaf_amount: uint256,
+    upper_hint: uint256,
+    lower_hint: uint256,
+    annual_interest_rate: uint256,
+    max_upfront_fee: uint256,
+):
+    """
+    @notice Opens a leveraged trove using a flash loan
+    @dev Adds this contract as add/receive manager to be able to fully adjust trove
+    @param owner Address of the trove owner
+    @param owner_index Index of the trove owner in the trove index
+    @param initial_collateral_amount Amount of collateral to pull from the user, will be added to the trove
+    @param flash_loan_amount Amount of crvUSD to flash loan, will be swapped for collateral
+    @param usdaf_amount Amount of USDaf to mint
+    @param upper_hint Upper hint for the trove
+    @param lower_hint Lower hint for the trove
+    @param annual_interest_rate Annual interest rate for the trove
+    @param max_upfront_fee Maximum upfront fee to pay for the operation
+    """
+    extcall COLLATERAL_TOKEN.transferFrom(msg.sender, self, initial_collateral_amount, default_return_value=True)
+    extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
+
+    before: uint256 = staticcall CRVUSD.balanceOf(self)
+
+    selector: Bytes[SELECTOR_SIZE] = method_id("_on_open_leveraged_trove()")
+    encoded_args: Bytes[ENCODED_OPEN_TROVE_ARGS_SIZE] = abi_encode(
+        owner,
+        owner_index,
+        initial_collateral_amount,
+        flash_loan_amount,
+        usdaf_amount,
+        upper_hint,
+        lower_hint,
+        annual_interest_rate,
+        max_upfront_fee,
+    )
+    data: Bytes[OPEN_TROVE_CALLDATA_SIZE] = concat(selector, encoded_args)
+    extcall FLASH_LENDER.flashLoan(self, CRVUSD.address, flash_loan_amount, data)
+
+    self._return_leftovers(before)
+
+
+def _on_open_leveraged_trove(
+    owner: address,
+    owner_index: uint256,
+    initial_collateral_amount: uint256,
+    flash_loan_amount: uint256,
+    usdaf_amount: uint256,
+    upper_hint: uint256,
+    lower_hint: uint256,
+    annual_interest_rate: uint256,
+    max_upfront_fee: uint256,
+):
+    """
+    @notice Internal function to handle opening a leveraged trove. Called by the flash loan provider
+    @param owner Address of the trove owner
+    @param owner_index Index of the trove owner in the trove index
+    @param initial_collateral_amount Amount of collateral that was pulled from the user
+    @param flash_loan_amount Amount of crvUSD to flash loan, will be swapped for collateral
+    @param usdaf_amount Amount of USDaf to mint
+    @param upper_hint Upper hint for the trove
+    @param lower_hint Lower hint for the trove
+    @param annual_interest_rate Annual interest rate for the trove
+    @param max_upfront_fee Maximum upfront fee to pay for the operation
+    """
+    # crvUSD --> collateral
+    collateral_amount: uint256 = self._swap(flash_loan_amount, True, True) + initial_collateral_amount
+
+    before: uint256 = staticcall USDAF.balanceOf(self)
+
+    # Open trove with collateral and Bold debt
+    extcall BORROWER_OPERATIONS.openTrove(
+        owner,
+        owner_index,
+        collateral_amount,
+        usdaf_amount,
+        upper_hint,
+        lower_hint,
+        annual_interest_rate,
+        max_upfront_fee,
+        self,  # addManager
+        self,  # removeManager
+        self  # receiver
+    )
+
+    # USDaf --> crvUSD
+    self._swap(staticcall USDAF.balanceOf(self) - before, False, False)
 
 
 # ============================================================================================
@@ -196,10 +296,7 @@ def _on_lever_up_trove(
     extcall BORROWER_OPERATIONS.adjustTrove(trove_id, collateral_amount, True, usdaf_amount, True, max_upfront_fee)
 
     # USDaf --> crvUSD
-    amount_out: uint256 = self._swap(usdaf_amount, False, False)
-
-    # Make sure we can repay the flash loan
-    assert staticcall CRVUSD.balanceOf(self) >= flash_loan_amount, "!repay"
+    self._swap(usdaf_amount, False, False)
 
 
 # ============================================================================================
@@ -312,6 +409,43 @@ def onFlashLoan(
             slice(data, SELECTOR_SIZE, ENCODED_LEVER_DOWN_ARGS_SIZE), (uint256, uint256, uint256, uint256)
         )
         self._on_lever_down_trove(trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount)
+    elif selector == method_id("_on_open_leveraged_trove()"):
+        owner: address = empty(address)
+        owner_index: uint256 = empty(uint256)
+        initial_collateral_amount: uint256 = empty(uint256)
+        flash_loan_amount: uint256 = empty(uint256)
+        usdaf_amount: uint256 = empty(uint256)
+        upper_hint: uint256 = empty(uint256)
+        lower_hint: uint256 = empty(uint256)
+        annual_interest_rate: uint256 = empty(uint256)
+        max_upfront_fee: uint256 = empty(uint256)
+
+        (
+            owner,
+            owner_index,
+            initial_collateral_amount,
+            flash_loan_amount,
+            usdaf_amount,
+            upper_hint,
+            lower_hint,
+            annual_interest_rate,
+            max_upfront_fee
+        ) = abi_decode(
+            slice(data, SELECTOR_SIZE, ENCODED_OPEN_TROVE_ARGS_SIZE),
+            (address, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256)
+        )
+
+        self._on_open_leveraged_trove(
+            owner,
+            owner_index,
+            initial_collateral_amount,
+            flash_loan_amount,
+            usdaf_amount,
+            upper_hint,
+            lower_hint,
+            annual_interest_rate,
+            max_upfront_fee
+        )
     else:
         raise "!selector"
 
