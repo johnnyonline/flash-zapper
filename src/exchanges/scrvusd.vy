@@ -12,26 +12,6 @@ from ethereum.ercs import IERC4626
 
 from ..interfaces import IExchange
 
-from ..periphery import ownable_2step as ownable
-from ..periphery import sweep
-
-
-# ============================================================================================
-# Modules
-# ============================================================================================
-
-
-initializes: ownable
-exports: (
-    ownable.owner,
-    ownable.pending_owner,
-    ownable.transfer_ownership,
-    ownable.accept_ownership,
-)
-
-initializes: sweep[ownable := ownable]
-exports: sweep.sweep_token
-
 
 # ============================================================================================
 # Interfaces
@@ -57,12 +37,10 @@ SCRVUSD: constant(IERC4626) = IERC4626(0x0655977FEb2f289A4aB78af67BAB0d17aAb8436
 
 
 @deploy
-def __init__(owner: address):
+def __init__():
     """
     @notice Initialize the contract
-    @param owner Address of the owner
     """
-    ownable.__init__(owner)
     self._max_approve(CRVUSD, SCRVUSD.address)
 
 

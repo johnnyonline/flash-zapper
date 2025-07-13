@@ -11,25 +11,7 @@ from ethereum.ercs import IERC20
 
 from ..interfaces import IExchange
 
-from ..periphery import ownable_2step as ownable
-from ..periphery import sweep
 from ..periphery import curve_tricrypto_swapper as curve_tricrypto
-
-# ============================================================================================
-# Modules
-# ============================================================================================
-
-
-initializes: ownable
-exports: (
-    ownable.owner,
-    ownable.pending_owner,
-    ownable.transfer_ownership,
-    ownable.accept_ownership,
-)
-
-initializes: sweep[ownable := ownable]
-exports: sweep.sweep_token
 
 
 # ============================================================================================
@@ -61,12 +43,10 @@ TBTC: constant(IERC20) = IERC20(0x18084fbA666a33d37592fA2633fD49a74DD93a88)
 
 
 @deploy
-def __init__(owner: address):
+def __init__():
     """
     @notice Initialize the contract
-    @param owner Address of the owner
     """
-    ownable.__init__(owner)
     self._max_approve(CRVUSD, TRICRYPTO_POOL)
     self._max_approve(TBTC, TRICRYPTO_POOL)
 

@@ -39,7 +39,6 @@ contract Deploy is Script {
 
     bool public isTest;
     address public deployer;
-    address public owner;
 
     IExchange public USDAF_EXCHANGE;
 
@@ -106,15 +105,15 @@ contract Deploy is Script {
     uint256 public tbtc_branchIndex = 5;
     string public tbtc_exchangeName = "tbtc";
 
-    // // WBTC18
-    // address public wbtc18_addressesRegistry = 0x2AFF30744843aF04F68286Fa4818d44e93b80561;
-    // address public wbtc18_collateralToken = 0xF53bb90bd20c2a3Eb3eB01e8233130a69Db58324;
-    // address public wbtc18_priceOracle = 0x4d349971C23d6142e8dE9dEbbfdBB045B7AAbA49;
-    // address public wbtc18_troveManager = 0x085AbEe74F74E343647bdD2D68927e59163A0904;
-    // address public wbtc18_borrowerOperations = 0xfc72d7301c323A5BcfD10FfDE35908CE201B6c52;
-    // address public wbtc18_sortedTroves = 0x26e6307CA1F7Ba57BeDb16a80E366b01e814eD77;
-    // uint256 public wbtc18_branchIndex = 6;
-    // string public wbtc18_exchangeName = "wbtc18";
+    // WBTC18
+    address public wbtc18_addressesRegistry = 0x2AFF30744843aF04F68286Fa4818d44e93b80561;
+    address public wbtc18_collateralToken = 0xF53bb90bd20c2a3Eb3eB01e8233130a69Db58324;
+    address public wbtc18_priceOracle = 0x4d349971C23d6142e8dE9dEbbfdBB045B7AAbA49;
+    address public wbtc18_troveManager = 0x085AbEe74F74E343647bdD2D68927e59163A0904;
+    address public wbtc18_borrowerOperations = 0xfc72d7301c323A5BcfD10FfDE35908CE201B6c52;
+    address public wbtc18_sortedTroves = 0x26e6307CA1F7Ba57BeDb16a80E366b01e814eD77;
+    uint256 public wbtc18_branchIndex = 6;
+    string public wbtc18_exchangeName = "wbtc18";
 
     // // cbBTC18
     // address public cbbtc18_addressesRegistry = 0x0F7Eb92d20e9624601D7dD92122AEd80Efa8ec6a;
@@ -130,7 +129,6 @@ contract Deploy is Script {
         uint256 _pk = isTest ? 42_069 : vm.envUint("DEPLOYER_PRIVATE_KEY");
         VmSafe.Wallet memory _wallet = vm.createWallet(_pk);
         deployer = _wallet.addr;
-        owner = deployer;
 
         _populateParams();
 
@@ -138,13 +136,13 @@ contract Deploy is Script {
 
         vm.startBroadcast(_pk);
 
-        USDAF_EXCHANGE = IExchange(deployCode("usdaf", abi.encode(owner)));
+        USDAF_EXCHANGE = IExchange(deployCode("usdaf"));
 
         for (uint256 i = 0; i < params.length; i++) {
             Params memory p = params[i];
-            address _collateralExchange = deployCode(p.exchangeName, abi.encode(owner));
+            address _collateralExchange = deployCode(p.exchangeName);
             address _flashZapper =
-                deployCode("flash_zapper", abi.encode(owner, USDAF_EXCHANGE, _collateralExchange, p.addressesRegistry));
+                deployCode("flash_zapper", abi.encode(USDAF_EXCHANGE, _collateralExchange, p.addressesRegistry, address(0)));
 
             params[i].exchange = _collateralExchange;
             params[i].flashZapper = _flashZapper;
@@ -271,23 +269,23 @@ contract Deploy is Script {
             })
         );
 
-        //     // WBTC18
-        //     params.push(
-        //         Params({
-        //             exchange: address(0),
-        //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
-        //             addressesRegistry: wbtc18_addressesRegistry,
-        //             collateralToken: wbtc18_collateralToken,
-        //             priceOracle: wbtc18_priceOracle,
-        //             troveManager: wbtc18_troveManager,
-        //             borrowerOperations: wbtc18_borrowerOperations,
-        //             sortedTroves: wbtc18_sortedTroves,
-        //             branchIndex: wbtc18_branchIndex,
-        //             ltv: BTC_LTV,
-        //             exchangeName: wbtc18_exchangeName
-        //         })
-        //     );
+        // // WBTC18
+        // params.push(
+        //     Params({
+        //         exchange: address(0),
+        //         flashZapper: address(0),
+        //         wrappedFlashZapper: address(0),
+        //         addressesRegistry: wbtc18_addressesRegistry,
+        //         collateralToken: wbtc18_collateralToken,
+        //         priceOracle: wbtc18_priceOracle,
+        //         troveManager: wbtc18_troveManager,
+        //         borrowerOperations: wbtc18_borrowerOperations,
+        //         sortedTroves: wbtc18_sortedTroves,
+        //         branchIndex: wbtc18_branchIndex,
+        //         ltv: BTC_LTV,
+        //         exchangeName: wbtc18_exchangeName
+        //     })
+        // );
 
         //     // cbBTC18
         //     params.push(

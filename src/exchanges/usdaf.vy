@@ -12,26 +12,7 @@ from ethereum.ercs import IERC4626
 
 from ..interfaces import IExchange
 
-from ..periphery import ownable_2step as ownable
-from ..periphery import sweep
 from ..periphery import curve_stableswap_swapper as curve_stableswap
-
-
-# ============================================================================================
-# Modules
-# ============================================================================================
-
-
-initializes: ownable
-exports: (
-    ownable.owner,
-    ownable.pending_owner,
-    ownable.transfer_ownership,
-    ownable.accept_ownership,
-)
-
-initializes: sweep[ownable := ownable]
-exports: sweep.sweep_token
 
 
 # ============================================================================================
@@ -69,13 +50,10 @@ CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 
 
 @deploy
-def __init__(owner: address):
+def __init__():
     """
     @notice Initialize the contract
-    @param owner Address of the owner
     """
-    ownable.__init__(owner)
-
     self._max_approve(USDAF, USDAF_USDC_CURVE_POOL)
     self._max_approve(USDC, USDAF_USDC_CURVE_POOL)
     self._max_approve(USDC, CRVUSD_USDC_POOL)
