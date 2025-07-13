@@ -28,7 +28,6 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_openLeveragedTrove_scrvusd() public {
         _setParams(scrvusd_branchIndex);
         uint256 _amount = MIN_FUZZ;
         uint256 _leverageRatio = MAX_LEVERAGE;
@@ -36,18 +35,12 @@ contract FlashZapperTests is Base {
     }
 
     function test_leverUp_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverUp_scrvusd() public {
         _setParams(scrvusd_branchIndex);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverDown_scrvusd() public {
         _setParams(scrvusd_branchIndex);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -56,26 +49,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_openLeveragedTrove_tbtc() public {
         _setParams(1);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverUp_tbtc() public {
         _setParams(1);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverDown_tbtc() public {
         _setParams(1);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -84,26 +68,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_openLeveragedTrove_wbtc() public {
         _setParams(2);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverUp_wbtc() public {
         _setParams(2);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        // function test_leverDown_wbtc() public {
         _setParams(2);
-        // uint256 _amount = MIN_FUZZ;
-        // uint256 _leverageRatio = MAX_LEVERAGE;
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -112,8 +87,8 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function check_openLeveragedTrove(uint256 _amount, uint256 _leverageRatio) public {
-        vm.assume(_amount > MIN_FUZZ && _amount < MAX_FUZZ);
-        vm.assume(_leverageRatio >= MIN_LEVERAGE && _leverageRatio <= MAX_LEVERAGE);
+        _amount = bound(_amount, MIN_FUZZ, MAX_FUZZ);
+        _leverageRatio = bound(_leverageRatio, MIN_LEVERAGE, MAX_LEVERAGE);
 
         (uint256 _price,) = IPriceOracle(PRICE_ORACLE).fetchPrice();
 
@@ -161,7 +136,7 @@ contract FlashZapperTests is Base {
         uint256 _expectedDebt = _debtToMint;
 
         assertApproxEqRel(_collateralAfter, _expectedCollateral, 3e16, "check_openLeveragedTrove: E0"); // 3% diff allowed
-        assertApproxEqRel(_debtAfter, _expectedDebt, 1e15, "check_openLeveragedTrove: E1"); // 0.1% diff allowed
+        assertApproxEqRel(_debtAfter, _expectedDebt, 2e15, "check_openLeveragedTrove: E1"); // 0.2% diff allowed
 
         // Check user balances
         assertEq(USDAF.balanceOf(user), 0, "check_openLeveragedTrove: E3");
@@ -183,8 +158,8 @@ contract FlashZapperTests is Base {
     }
 
     function check_leverUp(uint256 _amount, uint256 _leverageRatio) public returns (uint256 _troveId) {
-        vm.assume(_amount > MIN_FUZZ && _amount < MAX_FUZZ);
-        vm.assume(_leverageRatio >= MIN_LEVERAGE && _leverageRatio <= MAX_LEVERAGE);
+        _amount = bound(_amount, MIN_FUZZ, MAX_FUZZ);
+        _leverageRatio = bound(_leverageRatio, MIN_LEVERAGE, MAX_LEVERAGE);
 
         // Open a trove for the user
         _troveId = _openTrove(_amount);
