@@ -3,8 +3,6 @@ pragma solidity 0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-// import {IWrapper} from "./interfaces/IWrapper.sol";
-
 import "../script/Deploy.s.sol";
 
 import "forge-std/Test.sol";
@@ -22,10 +20,9 @@ abstract contract Base is Deploy, Test {
     string public EXCHANGE_NAME;
 
     IERC20 public COLLATERAL_TOKEN;
-    IERC20 public UNWRAPPED_COLLATERAL_TOKEN;
+    IERC20 public WRAPPED_COLLATERAL_TOKEN;
     IExchange public EXCHANGE;
     IFlashZapper public FLASH_ZAPPER;
-    IFlashZapper public WRAPPED_FLASH_ZAPPER;
 
     IERC20 public constant USDAF = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA);
     IERC20 public constant CRVUSD = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E);
@@ -58,9 +55,9 @@ abstract contract Base is Deploy, Test {
     ) internal {
         Params memory p = params[_index];
         COLLATERAL_TOKEN = IERC20(p.collateralToken);
+        WRAPPED_COLLATERAL_TOKEN = COLLATERAL_TOKEN;
         EXCHANGE = IExchange(p.exchange);
         FLASH_ZAPPER = IFlashZapper(p.flashZapper);
-        WRAPPED_FLASH_ZAPPER = IFlashZapper(p.wrappedFlashZapper);
         LTV = p.ltv;
         PRICE_ORACLE = p.priceOracle;
         TROVE_MANAGER = p.troveManager;
@@ -76,9 +73,11 @@ abstract contract Base is Deploy, Test {
             MAX_LEVERAGE = 7 ether; // 7x leverage
         }
 
-        // if (BRANCH_INDEX == wbtc18_branchIndex || BRANCH_INDEX == cbbtc18_branchIndex) {
-        //     UNWRAPPED_COLLATERAL_TOKEN = IERC20(IWrapper(p.collateralToken).underlying());
-        // }
+        // Override for WBTC
+        if (BRANCH_INDEX == wbtc18_branchIndex) {
+            COLLATERAL_TOKEN = IERC20(WBTC);
+            WRAPPED_COLLATERAL_TOKEN = IERC20(p.collateralToken);
+        }
     }
 
 }

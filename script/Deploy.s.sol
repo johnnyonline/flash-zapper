@@ -23,7 +23,6 @@ contract Deploy is Script {
     struct Params {
         address exchange;
         address flashZapper;
-        address wrappedFlashZapper; // only for WBTC18 and cbBTC18
         address addressesRegistry;
         address collateralToken;
         address priceOracle;
@@ -41,6 +40,8 @@ contract Deploy is Script {
     address public deployer;
 
     IExchange public USDAF_EXCHANGE;
+
+    address public constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
     uint256 public USD_LTV = 909_090_909_090_909_090; // 90.91%
     uint256 public BTC_LTV = 833_333_333_333_333_333; // 83.33%
@@ -141,8 +142,11 @@ contract Deploy is Script {
         for (uint256 i = 0; i < params.length; i++) {
             Params memory p = params[i];
             address _collateralExchange = deployCode(p.exchangeName);
-            address _flashZapper =
-                deployCode("flash_zapper", abi.encode(USDAF_EXCHANGE, _collateralExchange, p.addressesRegistry, address(0)));
+            address _flashZapper = p.branchIndex == wbtc18_branchIndex
+                ? deployCode("flash_zapper", abi.encode(USDAF_EXCHANGE, _collateralExchange, p.addressesRegistry, WBTC))
+                : deployCode(
+                    "flash_zapper", abi.encode(USDAF_EXCHANGE, _collateralExchange, p.addressesRegistry, address(0))
+                );
 
             params[i].exchange = _collateralExchange;
             params[i].flashZapper = _flashZapper;
@@ -166,7 +170,6 @@ contract Deploy is Script {
             Params({
                 exchange: address(0),
                 flashZapper: address(0),
-                wrappedFlashZapper: address(0),
                 addressesRegistry: scrvusd_addressesRegistry,
                 collateralToken: scrvusd_collateralToken,
                 priceOracle: scrvusd_priceOracle,
@@ -184,7 +187,6 @@ contract Deploy is Script {
         //         Params({
         //             exchange: address(0),
         //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
         //             addressesRegistry: sdai_addressesRegistry,
         //             collateralToken: sdai_collateralToken,
         //             priceOracle: sdai_priceOracle,
@@ -202,7 +204,6 @@ contract Deploy is Script {
         //         Params({
         //             exchange: address(0),
         //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
         //             addressesRegistry: susds_addressesRegistry,
         //             collateralToken: susds_collateralToken,
         //             priceOracle: susds_priceOracle,
@@ -220,7 +221,6 @@ contract Deploy is Script {
         //         Params({
         //             exchange: address(0),
         //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
         //             addressesRegistry: sfrxusd_addressesRegistry,
         //             collateralToken: sfrxusd_collateralToken,
         //             priceOracle: sfrxusd_priceOracle,
@@ -238,7 +238,6 @@ contract Deploy is Script {
         //         Params({
         //             exchange: address(0),
         //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
         //             addressesRegistry: susde_addressesRegistry,
         //             collateralToken: susde_collateralToken,
         //             priceOracle: susde_priceOracle,
@@ -256,7 +255,6 @@ contract Deploy is Script {
             Params({
                 exchange: address(0),
                 flashZapper: address(0),
-                wrappedFlashZapper: address(0),
                 addressesRegistry: tbtc_addressesRegistry,
                 collateralToken: tbtc_collateralToken,
                 priceOracle: tbtc_priceOracle,
@@ -269,30 +267,28 @@ contract Deploy is Script {
             })
         );
 
-        // // WBTC18
-        // params.push(
-        //     Params({
-        //         exchange: address(0),
-        //         flashZapper: address(0),
-        //         wrappedFlashZapper: address(0),
-        //         addressesRegistry: wbtc18_addressesRegistry,
-        //         collateralToken: wbtc18_collateralToken,
-        //         priceOracle: wbtc18_priceOracle,
-        //         troveManager: wbtc18_troveManager,
-        //         borrowerOperations: wbtc18_borrowerOperations,
-        //         sortedTroves: wbtc18_sortedTroves,
-        //         branchIndex: wbtc18_branchIndex,
-        //         ltv: BTC_LTV,
-        //         exchangeName: wbtc18_exchangeName
-        //     })
-        // );
+        // WBTC18
+        params.push(
+            Params({
+                exchange: address(0),
+                flashZapper: address(0),
+                addressesRegistry: wbtc18_addressesRegistry,
+                collateralToken: wbtc18_collateralToken,
+                priceOracle: wbtc18_priceOracle,
+                troveManager: wbtc18_troveManager,
+                borrowerOperations: wbtc18_borrowerOperations,
+                sortedTroves: wbtc18_sortedTroves,
+                branchIndex: wbtc18_branchIndex,
+                ltv: BTC_LTV,
+                exchangeName: wbtc18_exchangeName
+            })
+        );
 
         //     // cbBTC18
         //     params.push(
         //         Params({
         //             exchange: address(0),
         //             leverageZapper: address(0),
-        //             wrappedFlashZapper: address(0),
         //             addressesRegistry: cbbtc18_addressesRegistry,
         //             collateralToken: cbbtc18_collateralToken,
         //             priceOracle: cbbtc18_priceOracle,
