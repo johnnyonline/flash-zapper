@@ -45,7 +45,7 @@ TBTC_WBTC_CURVE_POOL: constant(address) = 0xB7ECB2AA52AA64a717180E030241bC75Cd94
 CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 TBTC: constant(IERC20) = IERC20(0x18084fbA666a33d37592fA2633fD49a74DD93a88)
 WBTC: constant(IERC20) = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599)
-WBTC18: constant(IWrapper) = IWrapper(0xF53bb90bd20c2a3Eb3eB01e8233130a69Db58324)
+WBTC18: constant(IWrapper) = IWrapper(0xe065Bc161b90C9C4Bba2de7F1E194b70A3267c47)
 
 
 # ============================================================================================

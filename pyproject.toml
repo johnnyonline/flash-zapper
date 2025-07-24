@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "vyper==0.4.1",
-    "mamushi==0.0.4"
+    "mamushi==0.0.6"
 ]
 
 [tool.mamushi]

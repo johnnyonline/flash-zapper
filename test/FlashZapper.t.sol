@@ -28,19 +28,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(scrvusd_branchIndex);
-        uint256 _amount = MIN_FUZZ;
-        uint256 _leverageRatio = MAX_LEVERAGE;
+        _setParams(0);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(scrvusd_branchIndex);
+        _setParams(0);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(scrvusd_branchIndex);
+        _setParams(0);
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -89,6 +87,9 @@ contract FlashZapperTests is Base {
     function check_openLeveragedTrove(uint256 _amount, uint256 _leverageRatio) public {
         _amount = bound(_amount, MIN_FUZZ, MAX_FUZZ);
         _leverageRatio = bound(_leverageRatio, MIN_LEVERAGE, MAX_LEVERAGE);
+
+        // open a massive trove to make sure TCRBelowCCR is never hit
+        _openTrove(10_000_000 ether, whale);
 
         (uint256 _price,) = IPriceOracle(PRICE_ORACLE).fetchPrice();
 

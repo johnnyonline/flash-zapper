@@ -48,7 +48,7 @@ ETH_GAS_COMPENSATION: constant(uint256) = as_wei_value(0.0375, "ether")
 DECIMALS_DIFF: constant(uint256) = 10
 
 # Token addresses
-USDAF: public(constant(IERC20)) = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA)
+USDAF: public(constant(IERC20)) = IERC20(0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB91f8)
 CRVUSD: public(constant(IERC20)) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 WETH: public(constant(IERC20)) = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
 
@@ -99,8 +99,13 @@ def __init__(
     # Set unwrapped collateral token if needed
     if unwrapped_collateral_token != empty(address):
         UNWRAPPED_COLLATERAL_TOKEN = IERC20(unwrapped_collateral_token)
-        assert (staticcall IWrapper(COLLATERAL_TOKEN.address).underlying() == UNWRAPPED_COLLATERAL_TOKEN.address), "!wrapper"
-        extcall UNWRAPPED_COLLATERAL_TOKEN.approve(COLLATERAL_TOKEN.address, max_value(uint256), default_return_value=True)
+        assert (
+            staticcall IWrapper(COLLATERAL_TOKEN.address).underlying() == UNWRAPPED_COLLATERAL_TOKEN.address
+        ), "!wrapper"
+        extcall UNWRAPPED_COLLATERAL_TOKEN.approve(
+            COLLATERAL_TOKEN.address, max_value(uint256), default_return_value=True
+        )
+
 
     # Set exchanges
     self._set_exchange(IExchange(usdaf_exchange), False)
@@ -146,9 +151,14 @@ def open_leveraged_trove(
     if UNWRAPPED_COLLATERAL_TOKEN.address == empty(address):
         extcall COLLATERAL_TOKEN.transferFrom(msg.sender, self, _initial_collateral_amount, default_return_value=True)
     else:
-        extcall UNWRAPPED_COLLATERAL_TOKEN.transferFrom(msg.sender, self, _initial_collateral_amount, default_return_value=True)
-        extcall IWrapper(COLLATERAL_TOKEN.address).depositFor(self, _initial_collateral_amount, default_return_value=True)
-        _initial_collateral_amount *= 10 ** DECIMALS_DIFF
+        extcall UNWRAPPED_COLLATERAL_TOKEN.transferFrom(
+            msg.sender, self, _initial_collateral_amount, default_return_value=True
+        )
+        extcall IWrapper(COLLATERAL_TOKEN.address).depositFor(
+            self, _initial_collateral_amount, default_return_value=True
+        )
+        _initial_collateral_amount *= 10**DECIMALS_DIFF
+
 
     # Pull WETH for gas compensation
     extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
@@ -425,10 +435,10 @@ def onFlashLoan(
             upper_hint,
             lower_hint,
             annual_interest_rate,
-            max_upfront_fee
+            max_upfront_fee,
         ) = abi_decode(
             slice(data, SELECTOR_SIZE, ENCODED_OPEN_TROVE_ARGS_SIZE),
-            (address, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256)
+            (address, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256),
         )
 
         self._on_open_leveraged_trove(
@@ -440,10 +450,11 @@ def onFlashLoan(
             upper_hint,
             lower_hint,
             annual_interest_rate,
-            max_upfront_fee
+            max_upfront_fee,
         )
     else:
         raise "!selector"
+
 
     # Return the flash loan
     extcall CRVUSD.transfer(FLASH_LENDER.address, amount, default_return_value=True)
@@ -501,6 +512,7 @@ def _set_exchange(exchange: IExchange, is_collateral: bool):
     else:
         assert (paired_with.address == USDAF.address), "!usdaf"
         self.usdaf_exchange = exchange
+
 
     # Approve the exchange to spend crvUSD and the paired token
     extcall CRVUSD.approve(exchange.address, max_value(uint256), default_return_value=True)

@@ -28,20 +28,15 @@ implements: IExchange
 # ============================================================================================
 
 
-# USDaf/USDC Curve StableNG Pool
-USDC_INDEX_USDAF_USDC_CURVE_POOL: constant(uint256) = 1
-USDAF_INDEX_USDAF_USDC_CURVE_POOL: constant(uint256) = 0
-USDAF_USDC_CURVE_POOL: constant(address) = 0x95591348FE9718bE8bfa3afcC9b017D9Ec18A7fa
-
-# crvUSD/USDC Curve StableNG Pool
-USDC_INDEX_CRVUSD_USDC_POOL: constant(uint256) = 0
-CRVUSD_INDEX_CRVUSD_USDC_POOL: constant(uint256) = 1
-CRVUSD_USDC_POOL: constant(address) = 0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E
+# scrvUSD/USDaf Curve StableNG Pool
+SCRVUSD_INDEX_CURVE_POOL: constant(uint256) = 0
+USDAF_INDEX_CURVE_POOL: constant(uint256) = 1
+CURVE_POOL: constant(address) = 0x3bE454C4391690ab4DDae3Fb987c8147b8Ecc08A
 
 # Token addresses
-USDAF: constant(IERC20) = IERC20(0x85E30b8b263bC64d94b827ed450F2EdFEE8579dA)
-USDC: constant(IERC20) = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)
+USDAF: constant(IERC20) = IERC20(0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB91f8)
 CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
+SCRVUSD: constant(IERC4626) = IERC4626(0x0655977FEb2f289A4aB78af67BAB0d17aAb84367)
 
 
 # ============================================================================================
@@ -54,10 +49,9 @@ def __init__():
     """
     @notice Initialize the contract
     """
-    self._max_approve(USDAF, USDAF_USDC_CURVE_POOL)
-    self._max_approve(USDC, USDAF_USDC_CURVE_POOL)
-    self._max_approve(USDC, CRVUSD_USDC_POOL)
-    self._max_approve(CRVUSD, CRVUSD_USDC_POOL)
+    self._max_approve(IERC20(SCRVUSD.address), CURVE_POOL)
+    self._max_approve(USDAF, CURVE_POOL)
+    self._max_approve(CRVUSD, SCRVUSD.address)
 
 
 # ============================================================================================
@@ -117,21 +111,15 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     # Pull crvUSD
     extcall CRVUSD.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # crvUSD --> USDC
-    amount_out: uint256 = curve_stableswap.swap(
-        CRVUSD_INDEX_CRVUSD_USDC_POOL,
-        USDC_INDEX_CRVUSD_USDC_POOL,
-        amount,
-        CRVUSD_USDC_POOL,
-        self,
-    )
+    # crvUSD --> scrvUSD
+    amount_out: uint256 = extcall SCRVUSD.deposit(amount, self)
 
-    # USDC --> USDaf
-    amount_out = curve_stableswap.swap_underlying(
-        USDC_INDEX_USDAF_USDC_CURVE_POOL,
-        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
+    # scrvUSD --> USDaf
+    amount_out = curve_stableswap.swap(
+        SCRVUSD_INDEX_CURVE_POOL,
+        USDAF_INDEX_CURVE_POOL,
         amount_out,
-        USDAF_USDC_CURVE_POOL,
+        CURVE_POOL,
         msg.sender,
     )
 
@@ -150,23 +138,17 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     # Pull USDaf
     extcall USDAF.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # USDaf --> USDC
-    amount_out: uint256 = curve_stableswap.swap_underlying(
-        USDAF_INDEX_USDAF_USDC_CURVE_POOL,
-        USDC_INDEX_USDAF_USDC_CURVE_POOL,
+    # USDaf --> scrvUSD
+    amount_out: uint256 = curve_stableswap.swap(
+        USDAF_INDEX_CURVE_POOL,
+        SCRVUSD_INDEX_CURVE_POOL,
         amount,
-        USDAF_USDC_CURVE_POOL,
+        CURVE_POOL,
         self,
     )
 
-    # USDC --> crvUSD
-    amount_out = curve_stableswap.swap(
-        USDC_INDEX_CRVUSD_USDC_POOL,
-        CRVUSD_INDEX_CRVUSD_USDC_POOL,
-        amount_out,
-        CRVUSD_USDC_POOL,
-        msg.sender,
-    )
+    # scrvUSD --> crvUSD
+    amount_out = extcall SCRVUSD.redeem(amount_out, msg.sender, self)
 
     assert amount_out >= min_amount, "slippage rekt you"
 
