@@ -45,10 +45,10 @@ jobs:
         id: fmt
       
 
-      # - name: Run Mamushi
-      #   run: |
-      #     mamushi --check --line-length 120
-      #   id: mamushi
+      - name: Run Mamushi
+        run: |
+          mamushi --check --line-length 120
+        id: mamushi
 
       - name: Run Forge build
         run: |
