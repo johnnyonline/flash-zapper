@@ -1,0 +1,24 @@
+# @version 0.4.1
+
+
+@external
+def zapIn(_assets: uint256, _receiver: address) -> uint256:
+    """
+    @notice Zap from BOLD to st-yBOLD
+    @param _assets The amount of BOLD to zap in
+    @param _receiver The address to receive the st-yBOLD
+    @return The amount of st-yBOLD received
+    """
+    ...
+
+
+@external
+def zapOut(_shares: uint256, _receiver: address, _maxLoss: uint256) -> uint256:
+    """
+    @notice Zap from st-yBOLD to BOLD
+    @param _shares The amount of st-yBOLD to zap out
+    @param _receiver The address to receive the BOLD
+    @param _maxLoss The maximum loss allowed during the zap out
+    @return The amount of BOLD received
+    """
+    ...

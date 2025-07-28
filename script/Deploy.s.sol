@@ -145,22 +145,22 @@ contract Deploy is Script {
     }
 
     function _populateParams() internal {
-        // // ysyBOLD
-        // params.push(
-        //     Params({
-        //         exchange: address(0),
-        //         flashZapper: address(0),
-        //         addressesRegistry: ysybold_addressesRegistry,
-        //         collateralToken: ysybold_collateralToken,
-        //         priceOracle: ysybold_priceOracle,
-        //         troveManager: ysybold_troveManager,
-        //         borrowerOperations: ysybold_borrowerOperations,
-        //         sortedTroves: ysybold_sortedTroves,
-        //         branchIndex: ysybold_branchIndex,
-        //         ltv: USD_LTV,
-        //         exchangeName: ysybold_exchangeName
-        //     })
-        // );
+        // ysyBOLD
+        params.push(
+            Params({
+                exchange: address(0),
+                flashZapper: address(0),
+                addressesRegistry: ysybold_addressesRegistry,
+                collateralToken: ysybold_collateralToken,
+                priceOracle: ysybold_priceOracle,
+                troveManager: ysybold_troveManager,
+                borrowerOperations: ysybold_borrowerOperations,
+                sortedTroves: ysybold_sortedTroves,
+                branchIndex: ysybold_branchIndex,
+                ltv: USD_LTV,
+                exchangeName: ysybold_exchangeName
+            })
+        );
 
         // scrvUSD
         params.push(

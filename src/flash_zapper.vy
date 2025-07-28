@@ -106,8 +106,6 @@ def __init__(
             COLLATERAL_TOKEN.address, max_value(uint256), default_return_value=True
         )
 
-
-    # Set exchanges
     self._set_exchange(IExchange(usdaf_exchange), False)
     self._set_exchange(IExchange(collateral_exchange), True)
 
@@ -159,8 +157,6 @@ def open_leveraged_trove(
         )
         _initial_collateral_amount *= 10**DECIMALS_DIFF
 
-
-    # Pull WETH for gas compensation
     extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
 
     # Cache crvUSD balance before
@@ -455,8 +451,6 @@ def onFlashLoan(
     else:
         raise "!selector"
 
-
-    # Return the flash loan
     extcall CRVUSD.transfer(FLASH_LENDER.address, amount, default_return_value=True)
 
     return FLASHLOAN_CALLBACK_SUCCESS
@@ -513,8 +507,6 @@ def _set_exchange(exchange: IExchange, is_collateral: bool):
         assert (paired_with.address == USDAF.address), "!usdaf"
         self.usdaf_exchange = exchange
 
-
-    # Approve the exchange to spend crvUSD and the paired token
     extcall CRVUSD.approve(exchange.address, max_value(uint256), default_return_value=True)
     extcall paired_with.approve(exchange.address, max_value(uint256), default_return_value=True)
 

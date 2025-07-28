@@ -24,21 +24,40 @@ contract FlashZapperTests is Base {
     }
 
     // ============================================================================================
+    // ysyBOLD
+    // ============================================================================================
+
+    function test_openLeveragedTrove_ysybold(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(ysybold_branchIndex);
+        check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_leverUp_ysybold(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(ysybold_branchIndex);
+        check_leverUp(_amount, _leverageRatio);
+    }
+
+    function test_leverDown_ysybold(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(ysybold_branchIndex);
+        check_leverDown(_amount, _leverageRatio);
+    }
+
+    // ============================================================================================
     // scrvUSD
     // ============================================================================================
 
     function test_openLeveragedTrove_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(0);
+        _setParams(scrvusd_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(0);
+        _setParams(scrvusd_branchIndex);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(0);
+        _setParams(scrvusd_branchIndex);
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -47,17 +66,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(1);
+        _setParams(2);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(1);
+        _setParams(2);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(1);
+        _setParams(2);
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -66,17 +85,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+        _setParams(3);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+        _setParams(3);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+        _setParams(3);
         check_leverDown(_amount, _leverageRatio);
     }
 
