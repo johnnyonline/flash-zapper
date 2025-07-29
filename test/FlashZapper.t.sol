@@ -81,21 +81,40 @@ contract FlashZapperTests is Base {
     }
 
     // ============================================================================================
+    // sfrxUSD
+    // ============================================================================================
+
+    function test_openLeveragedTrove_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(sfrxusd_branchIndex);
+        check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_leverUp_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(sfrxusd_branchIndex);
+        check_leverUp(_amount, _leverageRatio);
+    }
+
+    function test_leverDown_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(sfrxusd_branchIndex);
+        check_leverDown(_amount, _leverageRatio);
+    }
+
+    // ============================================================================================
     // tBTC
     // ============================================================================================
 
     function test_openLeveragedTrove_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(3);
+        _setParams(tbtc_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(3);
+        _setParams(tbtc_branchIndex);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(3);
+        _setParams(tbtc_branchIndex);
         check_leverDown(_amount, _leverageRatio);
     }
 
@@ -104,17 +123,17 @@ contract FlashZapperTests is Base {
     // ============================================================================================
 
     function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(4);
+        _setParams(wbtc18_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
     function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(4);
+        _setParams(wbtc18_branchIndex);
         check_leverUp(_amount, _leverageRatio);
     }
 
     function test_leverDown_wbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(4);
+        _setParams(wbtc18_branchIndex);
         check_leverDown(_amount, _leverageRatio);
     }
 

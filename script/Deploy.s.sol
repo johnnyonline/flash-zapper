@@ -196,22 +196,22 @@ contract Deploy is Script {
             })
         );
 
-        // // sfrxUSD
-        // params.push(
-        //     Params({
-        //         exchange: address(0),
-        //         flashZapper: address(0),
-        //         addressesRegistry: sfrxusd_addressesRegistry,
-        //         collateralToken: sfrxusd_collateralToken,
-        //         priceOracle: sfrxusd_priceOracle,
-        //         troveManager: sfrxusd_troveManager,
-        //         borrowerOperations: sfrxusd_borrowerOperations,
-        //         sortedTroves: sfrxusd_sortedTroves,
-        //         branchIndex: sfrxusd_branchIndex,
-        //         ltv: USD_LTV,
-        //         exchangeName: sfrxusd_exchangeName
-        //     })
-        // );
+        // sfrxUSD
+        params.push(
+            Params({
+                exchange: address(0),
+                flashZapper: address(0),
+                addressesRegistry: sfrxusd_addressesRegistry,
+                collateralToken: sfrxusd_collateralToken,
+                priceOracle: sfrxusd_priceOracle,
+                troveManager: sfrxusd_troveManager,
+                borrowerOperations: sfrxusd_borrowerOperations,
+                sortedTroves: sfrxusd_sortedTroves,
+                branchIndex: sfrxusd_branchIndex,
+                ltv: USD_LTV,
+                exchangeName: sfrxusd_exchangeName
+            })
+        );
 
         // tBTC
         params.push(
