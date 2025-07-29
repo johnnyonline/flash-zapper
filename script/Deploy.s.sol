@@ -179,22 +179,22 @@ contract Deploy is Script {
             })
         );
 
-        // // sUSDS
-        // params.push(
-        //     Params({
-        //         exchange: address(0),
-        //         flashZapper: address(0),
-        //         addressesRegistry: susds_addressesRegistry,
-        //         collateralToken: susds_collateralToken,
-        //         priceOracle: susds_priceOracle,
-        //         troveManager: susds_troveManager,
-        //         borrowerOperations: susds_borrowerOperations,
-        //         sortedTroves: susds_sortedTroves,
-        //         branchIndex: susds_branchIndex,
-        //         ltv: USD_LTV,
-        //         exchangeName: susds_exchangeName
-        //     })
-        // );
+        // sUSDS
+        params.push(
+            Params({
+                exchange: address(0),
+                flashZapper: address(0),
+                addressesRegistry: susds_addressesRegistry,
+                collateralToken: susds_collateralToken,
+                priceOracle: susds_priceOracle,
+                troveManager: susds_troveManager,
+                borrowerOperations: susds_borrowerOperations,
+                sortedTroves: susds_sortedTroves,
+                branchIndex: susds_branchIndex,
+                ltv: USD_LTV,
+                exchangeName: susds_exchangeName
+            })
+        );
 
         // // sfrxUSD
         // params.push(

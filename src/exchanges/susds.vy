@@ -1,16 +1,16 @@
 # @version 0.4.1
 
 """
-@title crvUSD <--> ysyBOLD
+@title crvUSD <--> sUSDS
 @license MIT
 @author asymmetry.finance
-@notice Swaps crvUSD for ysyBOLD and vice versa
+@notice Swaps crvUSD for sUSDS and vice versa
 """
 
 from ethereum.ercs import IERC20
+from ethereum.ercs import IERC4626
 
 from ..interfaces import IExchange
-from ..interfaces import IYearnBoldZapper
 
 from ..periphery import curve_stableswap_swapper as curve_stableswap
 
@@ -28,24 +28,15 @@ implements: IExchange
 # ============================================================================================
 
 
-# USDC/crvUSD Curve StableNG Pool
-USDC_INDEX_USDC_CRVUSD_CURVE_POOL: constant(uint256) = 0
-CRVUSD_INDEX_USDC_CRVUSD_CURVE_POOL: constant(uint256) = 1
-USDC_CRVUSD_CURVE_POOL: constant(address) = 0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E
-
-# BOLD/USDC Curve StableNG Pool
-BOLD_INDEX_BOLD_USDC_CURVE_POOL: constant(uint256) = 0
-USDC_INDEX_BOLD_USDC_CURVE_POOL: constant(uint256) = 1
-USDC_BOLD_CURVE_POOL: constant(address) = 0xEFc6516323FbD28e80B85A497B65A86243a54B3E
+# scrvUSD/sUSDS Curve StableNG Pool
+SCRVUSD_INDEX_CURVE_POOL: constant(uint256) = 0
+SUSDS_INDEX_CURVE_POOL: constant(uint256) = 1
+CURVE_POOL: constant(address) = 0xfD1627E3f3469C8392C8c3A261D8F0677586e5e1
 
 # Token addresses
-USDC: constant(IERC20) = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)
 CRVUSD: constant(IERC20) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
-BOLD: constant(IERC20) = IERC20(0x6440f144b7e50D6a8439336510312d2F54beB01D)
-YEARN_STAKED_BOLD: constant(IERC20) = IERC20(0x23346B04a7f55b8760E5860AA5A77383D63491cD)
-
-# Yearn BOLD Zapper
-YEARN_BOLD_ZAPPER: constant(IYearnBoldZapper) = IYearnBoldZapper(0xE7099092533A3FB693Bb123cD96B8e53b4d83C58)
+SUSDS: constant(IERC20) = IERC20(0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD)
+SCRVUSD: constant(IERC4626) = IERC4626(0x0655977FEb2f289A4aB78af67BAB0d17aAb84367)
 
 
 # ============================================================================================
@@ -58,12 +49,9 @@ def __init__():
     """
     @notice Initialize the contract
     """
-    self._max_approve(USDC, USDC_CRVUSD_CURVE_POOL)
-    self._max_approve(CRVUSD, USDC_CRVUSD_CURVE_POOL)
-    self._max_approve(BOLD, USDC_BOLD_CURVE_POOL)
-    self._max_approve(USDC, USDC_BOLD_CURVE_POOL)
-    self._max_approve(BOLD, YEARN_BOLD_ZAPPER.address)
-    self._max_approve(YEARN_STAKED_BOLD, YEARN_BOLD_ZAPPER.address)
+    self._max_approve(SUSDS, CURVE_POOL)
+    self._max_approve(IERC20(SCRVUSD.address), CURVE_POOL)
+    self._max_approve(CRVUSD, SCRVUSD.address)
 
 
 # ============================================================================================
@@ -88,7 +76,7 @@ def PAIRED_WITH() -> address:
     @notice Returns the address of the paired with token
     @return Address of the paired token
     """
-    return YEARN_STAKED_BOLD.address
+    return SUSDS.address
 
 
 # ============================================================================================
@@ -123,26 +111,17 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     # Pull crvUSD
     extcall CRVUSD.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # crvUSD --> USDC
-    amount_out: uint256 = curve_stableswap.swap(
-        CRVUSD_INDEX_USDC_CRVUSD_CURVE_POOL,
-        USDC_INDEX_USDC_CRVUSD_CURVE_POOL,
-        amount,
-        USDC_CRVUSD_CURVE_POOL,
-        self,
-    )
+    # crvUSD --> scrvUSD
+    amount_out: uint256 = extcall SCRVUSD.deposit(amount, self)
 
-    # USDC --> BOLD
+    # scrvUSD --> sUSDS
     amount_out = curve_stableswap.swap(
-        USDC_INDEX_BOLD_USDC_CURVE_POOL,
-        BOLD_INDEX_BOLD_USDC_CURVE_POOL,
+        SCRVUSD_INDEX_CURVE_POOL,
+        SUSDS_INDEX_CURVE_POOL,
         amount_out,
-        USDC_BOLD_CURVE_POOL,
-        self,
+        CURVE_POOL,
+        msg.sender,
     )
-
-    # BOLD --> st-yBOLD
-    amount_out = extcall YEARN_BOLD_ZAPPER.zapIn(amount_out, msg.sender)
 
     assert amount_out >= min_amount, "slippage rekt you"
 
@@ -156,29 +135,20 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     @param min_amount Minimum amount of USDaf to receive
     @return Amount of USDaf received
     """
-    # Pull st-yBOLD
-    extcall YEARN_STAKED_BOLD.transferFrom(msg.sender, self, amount, default_return_value=True)
+    # Pull sUSDS
+    extcall SUSDS.transferFrom(msg.sender, self, amount, default_return_value=True)
 
-    # st-yBOLD --> BOLD
-    extcall YEARN_BOLD_ZAPPER.zapOut(amount, self, 0)  # maxLoss is 0
-
-    # BOLD --> USDC
+    # sUSDS --> scrvUSD
     amount_out: uint256 = curve_stableswap.swap(
-        BOLD_INDEX_BOLD_USDC_CURVE_POOL,
-        USDC_INDEX_BOLD_USDC_CURVE_POOL,
+        SUSDS_INDEX_CURVE_POOL,
+        SCRVUSD_INDEX_CURVE_POOL,
         amount,
-        USDC_BOLD_CURVE_POOL,
+        CURVE_POOL,
         self,
     )
 
-    # USDC --> crvUSD
-    amount_out = curve_stableswap.swap(
-        USDC_INDEX_USDC_CRVUSD_CURVE_POOL,
-        CRVUSD_INDEX_USDC_CRVUSD_CURVE_POOL,
-        amount_out,
-        USDC_CRVUSD_CURVE_POOL,
-        msg.sender,
-    )
+    # scrvUSD --> crvUSD
+    amount_out = extcall SCRVUSD.redeem(amount_out, msg.sender, self)
 
     assert amount_out >= min_amount, "slippage rekt you"
 

@@ -62,40 +62,59 @@ contract FlashZapperTests is Base {
     }
 
     // ============================================================================================
-    // tBTC
+    // sUSDS
     // ============================================================================================
 
-    function test_openLeveragedTrove_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+    function test_openLeveragedTrove_susds(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(susds_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
-    function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+    function test_leverUp_susds(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(susds_branchIndex);
         check_leverUp(_amount, _leverageRatio);
     }
 
-    function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio) public {
-        _setParams(2);
+    function test_leverDown_susds(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(susds_branchIndex);
         check_leverDown(_amount, _leverageRatio);
     }
 
     // ============================================================================================
-    // wbtc
+    // tBTC
     // ============================================================================================
 
-    function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+    function test_openLeveragedTrove_tbtc(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(3);
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
-    function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+    function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(3);
         check_leverUp(_amount, _leverageRatio);
     }
 
-    function test_leverDown_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+    function test_leverDown_tbtc(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(3);
+        check_leverDown(_amount, _leverageRatio);
+    }
+
+    // ============================================================================================
+    // WBTC
+    // ============================================================================================
+
+    function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(4);
+        check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(4);
+        check_leverUp(_amount, _leverageRatio);
+    }
+
+    function test_leverDown_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(4);
         check_leverDown(_amount, _leverageRatio);
     }
 
