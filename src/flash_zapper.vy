@@ -38,7 +38,7 @@ ENCODED_LEVER_UP_ARGS_SIZE: constant(uint256) = 128
 LEVER_UP_CALLDATA_SIZE: constant(uint256) = (ENCODED_LEVER_UP_ARGS_SIZE + SELECTOR_SIZE)
 
 # Lever down
-ENCODED_LEVER_DOWN_ARGS_SIZE: constant(uint256) = 128
+ENCODED_LEVER_DOWN_ARGS_SIZE: constant(uint256) = 160
 LEVER_DOWN_CALLDATA_SIZE: constant(uint256) = (ENCODED_LEVER_DOWN_ARGS_SIZE + SELECTOR_SIZE)
 
 # WETH gas compensation needed for opening a trove
@@ -52,7 +52,7 @@ USDAF: public(constant(IERC20)) = IERC20(0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB9
 CRVUSD: public(constant(IERC20)) = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E)
 WETH: public(constant(IERC20)) = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
 
-# Flashloan provider
+# Flashloan provider (crvUSD FlashLender)
 FLASH_LENDER: public(constant(IERC3156FlashLender)) = IERC3156FlashLender(0x26dE7861e213A5351F6ED767d00e0839930e9eE1)
 
 # Trove addresses
@@ -99,15 +99,13 @@ def __init__(
     # Set unwrapped collateral token if needed
     if unwrapped_collateral_token != empty(address):
         UNWRAPPED_COLLATERAL_TOKEN = IERC20(unwrapped_collateral_token)
-        assert (
-            staticcall IWrapper(COLLATERAL_TOKEN.address).underlying() == UNWRAPPED_COLLATERAL_TOKEN.address
-        ), "!wrapper"
+        assert staticcall IWrapper(COLLATERAL_TOKEN.address).underlying() == unwrapped_collateral_token, "!wrapper"
         extcall UNWRAPPED_COLLATERAL_TOKEN.approve(
             COLLATERAL_TOKEN.address, max_value(uint256), default_return_value=True
         )
 
-    self._set_exchange(IExchange(usdaf_exchange), False)
-    self._set_exchange(IExchange(collateral_exchange), True)
+    self.set_exchange(IExchange(usdaf_exchange), False)
+    self.set_exchange(IExchange(collateral_exchange), True)
 
     # Approve spending to the borrower operations
     extcall WETH.approve(BORROWER_OPERATIONS.address, max_value(uint256), default_return_value=True)
@@ -145,17 +143,13 @@ def open_leveraged_trove(
     @param max_upfront_fee Maximum upfront fee to pay for the operation
     """
     # Pull initial collateral and wrap if needed
-    _initial_collateral_amount: uint256 = initial_collateral_amount
-    if UNWRAPPED_COLLATERAL_TOKEN.address == empty(address):
-        extcall COLLATERAL_TOKEN.transferFrom(msg.sender, self, _initial_collateral_amount, default_return_value=True)
+    collateral_amount: uint256 = initial_collateral_amount
+    if UNWRAPPED_COLLATERAL_TOKEN == empty(IERC20):
+        extcall COLLATERAL_TOKEN.transferFrom(msg.sender, self, collateral_amount, default_return_value=True)
     else:
-        extcall UNWRAPPED_COLLATERAL_TOKEN.transferFrom(
-            msg.sender, self, _initial_collateral_amount, default_return_value=True
-        )
-        extcall IWrapper(COLLATERAL_TOKEN.address).depositFor(
-            self, _initial_collateral_amount, default_return_value=True
-        )
-        _initial_collateral_amount *= 10**DECIMALS_DIFF
+        extcall UNWRAPPED_COLLATERAL_TOKEN.transferFrom(msg.sender, self, collateral_amount, default_return_value=True)
+        extcall IWrapper(COLLATERAL_TOKEN.address).depositFor(self, collateral_amount, default_return_value=True)
+        collateral_amount *= 10**DECIMALS_DIFF
 
     extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
 
@@ -163,11 +157,11 @@ def open_leveraged_trove(
     before: uint256 = staticcall CRVUSD.balanceOf(self)
 
     # Prepare calldata for the flash loan
-    selector: Bytes[SELECTOR_SIZE] = method_id("_on_open_leveraged_trove()")
+    selector: Bytes[SELECTOR_SIZE] = method_id("on_open_leveraged_trove()")
     encoded_args: Bytes[ENCODED_OPEN_TROVE_ARGS_SIZE] = abi_encode(
         owner,
         owner_index,
-        _initial_collateral_amount,
+        collateral_amount,
         flash_loan_amount,
         usdaf_amount,
         upper_hint,
@@ -181,10 +175,10 @@ def open_leveraged_trove(
     extcall FLASH_LENDER.flashLoan(self, CRVUSD.address, flash_loan_amount, data)
 
     # Return leftover crvUSD to the user
-    self._return_leftovers(before)
+    self.return_leftovers(before)
 
 
-def _on_open_leveraged_trove(
+def on_open_leveraged_trove(
     owner: address,
     owner_index: uint256,
     initial_collateral_amount: uint256,
@@ -197,6 +191,7 @@ def _on_open_leveraged_trove(
 ):
     """
     @notice Internal function to handle opening a leveraged trove. Called by the flash loan provider
+    @dev No need to worry about sandwich, the flash loan provider will revert if the amount returned is not enough
     @param owner Address of the trove owner
     @param owner_index Index of the trove owner in the trove index
     @param initial_collateral_amount Amount of collateral that was pulled from the user
@@ -208,7 +203,7 @@ def _on_open_leveraged_trove(
     @param max_upfront_fee Maximum upfront fee to pay for the operation
     """
     # crvUSD --> collateral
-    collateral_amount: uint256 = (self._swap(flash_loan_amount, True, True) + initial_collateral_amount)
+    collateral_amount: uint256 = (self.swap(flash_loan_amount, True, True) + initial_collateral_amount)
 
     # Open trove
     extcall BORROWER_OPERATIONS.openTrove(
@@ -226,7 +221,7 @@ def _on_open_leveraged_trove(
     )
 
     # USDaf --> crvUSD
-    self._swap(usdaf_amount, False, False)
+    self.swap(usdaf_amount, False, False)
 
 
 # ============================================================================================
@@ -244,21 +239,21 @@ def lever_up_trove(
     """
     @notice Leverages up a trove using a flash loan
     @dev The zapper must be the remove manager and receiver of the trove and the caller must be the owner of it
-    @dev Returns leftovers as USDaf to the caller
+    @dev Returns leftover crvUSD to the caller
     @param trove_id ID of the trove to leverage up
     @param flash_loan_amount Amount of crvUSD to borrow, will be swapped for collateral
     @param usdaf_amount Amount of USDaf debt to add to the trove
     @param max_upfront_fee Maximum upfront fee to pay for the operation
     """
     # Validate caller and zapper privileges
-    self._check_caller_is_owner(trove_id)
-    self._check_zapper_is_remove_manager_and_receiver(trove_id)
+    self.check_caller_is_owner(trove_id)
+    self.check_zapper_is_remove_manager_and_receiver(trove_id)
 
     # Cache crvUSD balance before
     before: uint256 = staticcall CRVUSD.balanceOf(self)
 
     # Prepare calldata for the flash loan
-    selector: Bytes[SELECTOR_SIZE] = method_id("_on_lever_up_trove()")
+    selector: Bytes[SELECTOR_SIZE] = method_id("on_lever_up_trove()")
     encoded_args: Bytes[ENCODED_LEVER_UP_ARGS_SIZE] = abi_encode(
         trove_id, flash_loan_amount, usdaf_amount, max_upfront_fee
     )
@@ -268,10 +263,10 @@ def lever_up_trove(
     extcall FLASH_LENDER.flashLoan(self, CRVUSD.address, flash_loan_amount, data)
 
     # Return leftover crvUSD to the user
-    self._return_leftovers(before)
+    self.return_leftovers(before)
 
 
-def _on_lever_up_trove(
+def on_lever_up_trove(
     trove_id: uint256,
     flash_loan_amount: uint256,
     usdaf_amount: uint256,
@@ -279,20 +274,20 @@ def _on_lever_up_trove(
 ):
     """
     @notice Internal function to handle leveraging up a trove. Called by the flash loan provider
-    @dev No need to use a min, the flash loan provider will revert if the amount returned is not enough
+    @dev No need to worry about sandwich, the flash loan provider will revert if the amount returned is not enough
     @param trove_id ID of the trove to leverage up
     @param flash_loan_amount Amount of crvUSD to borrow
     @param usdaf_amount Amount of USDaf to add to the trove
     @param max_upfront_fee Maximum upfront fee to pay for the operation
     """
     # crvUSD --> collateral
-    collateral_amount: uint256 = self._swap(flash_loan_amount, True, True)
+    collateral_amount: uint256 = self.swap(flash_loan_amount, True, True)
 
     # Increase trove collateral and debt
     extcall BORROWER_OPERATIONS.adjustTrove(trove_id, collateral_amount, True, usdaf_amount, True, max_upfront_fee)
 
     # USDaf --> crvUSD
-    self._swap(usdaf_amount, False, False)
+    self.swap(usdaf_amount, False, False)
 
 
 # ============================================================================================
@@ -316,56 +311,59 @@ def lever_down_trove(
     @param collateral_amount Amount of collateral to remove from the trove
     """
     # Validate caller and zapper privileges
-    self._check_caller_is_owner(trove_id)
-    self._check_zapper_is_remove_manager_and_receiver(trove_id)
+    self.check_caller_is_owner(trove_id)
+    self.check_zapper_is_remove_manager_and_receiver(trove_id)
 
     # Cache crvUSD balance before
     before: uint256 = staticcall CRVUSD.balanceOf(self)
 
     # Prepare calldata for the flash loan
-    selector: Bytes[SELECTOR_SIZE] = method_id("_on_lever_down_trove()")
+    selector: Bytes[SELECTOR_SIZE] = method_id("on_lever_down_trove()")
     encoded_args: Bytes[ENCODED_LEVER_DOWN_ARGS_SIZE] = abi_encode(
-        trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount
+        trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount, msg.sender
     )
-    data: Bytes[LEVER_UP_CALLDATA_SIZE] = concat(selector, encoded_args)
+    data: Bytes[LEVER_DOWN_CALLDATA_SIZE] = concat(selector, encoded_args)
 
     # Request flash loan
     extcall FLASH_LENDER.flashLoan(self, CRVUSD.address, flash_loan_amount, data)
 
     # Return leftover crvUSD to the user
-    self._return_leftovers(before)
+    self.return_leftovers(before)
 
 
-def _on_lever_down_trove(
+def on_lever_down_trove(
     trove_id: uint256,
     flash_loan_amount: uint256,
     min_usdaf_amount: uint256,
     collateral_amount: uint256,
+    user: address,
 ):
     """
     @notice Internal function to handle leveraging down a trove. Called by the flash loan provider
+    @dev Need to make sure we don't pay more than we want to free the collateral_amount
+    @dev Don't need to worry about the second swap, as the flash loan provider will revert if the amount returned is not enough
     @param trove_id ID of the trove to leverage down
     @param flash_loan_amount Amount of crvUSD to borrow
     @param min_usdaf_amount Minimum amount of USDaf to receive from the swap
     @param collateral_amount Amount of collateral to remove from the trove
+    @dev user Address of the user to transfer leftover USDaf to
     """
-    # Cache balance before
+    # Cache USDaf balance before
     before: uint256 = staticcall USDAF.balanceOf(self)
 
     # crvUSD --> USDaf
-    usdaf_amount: uint256 = self._swap(flash_loan_amount, False, True)
-    assert usdaf_amount >= min_usdaf_amount, "slippage rekt you"
+    usdaf_amount: uint256 = self.swap(flash_loan_amount, False, True, min_usdaf_amount)
 
     # Decrease trove collateral and debt
     extcall BORROWER_OPERATIONS.adjustTrove(trove_id, collateral_amount, False, usdaf_amount, False, 0)
 
     # Collateral --> crvUSD
-    self._swap(collateral_amount, True, False)
+    self.swap(collateral_amount, True, False)
 
     # Send leftover USDaf back to the user
     after: uint256 = staticcall USDAF.balanceOf(self)
     if after > before:
-        extcall USDAF.transfer(msg.sender, after - before, default_return_value=True)
+        extcall USDAF.transfer(user, after - before, default_return_value=True)
 
 
 # ============================================================================================
@@ -393,7 +391,7 @@ def onFlashLoan(
 
     # Decode the calldata and call the appropriate function
     selector: Bytes[SELECTOR_SIZE] = slice(data, 0, SELECTOR_SIZE)
-    if selector == method_id("_on_lever_up_trove()"):
+    if selector == method_id("on_lever_up_trove()"):
         trove_id: uint256 = empty(uint256)
         flash_loan_amount: uint256 = empty(uint256)
         usdaf_amount: uint256 = empty(uint256)
@@ -401,17 +399,18 @@ def onFlashLoan(
         (trove_id, flash_loan_amount, usdaf_amount, max_upfront_fee) = abi_decode(
             slice(data, SELECTOR_SIZE, ENCODED_LEVER_UP_ARGS_SIZE), (uint256, uint256, uint256, uint256)
         )
-        self._on_lever_up_trove(trove_id, flash_loan_amount, usdaf_amount, max_upfront_fee)
-    elif selector == method_id("_on_lever_down_trove()"):
+        self.on_lever_up_trove(trove_id, flash_loan_amount, usdaf_amount, max_upfront_fee)
+    elif selector == method_id("on_lever_down_trove()"):
         trove_id: uint256 = empty(uint256)
         flash_loan_amount: uint256 = empty(uint256)
         min_usdaf_amount: uint256 = empty(uint256)
         collateral_amount: uint256 = empty(uint256)
-        (trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount) = abi_decode(
-            slice(data, SELECTOR_SIZE, ENCODED_LEVER_DOWN_ARGS_SIZE), (uint256, uint256, uint256, uint256)
+        user: address = empty(address)
+        (trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount, user) = abi_decode(
+            slice(data, SELECTOR_SIZE, ENCODED_LEVER_DOWN_ARGS_SIZE), (uint256, uint256, uint256, uint256, address)
         )
-        self._on_lever_down_trove(trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount)
-    elif selector == method_id("_on_open_leveraged_trove()"):
+        self.on_lever_down_trove(trove_id, flash_loan_amount, min_usdaf_amount, collateral_amount, user)
+    elif selector == method_id("on_open_leveraged_trove()"):
         owner: address = empty(address)
         owner_index: uint256 = empty(uint256)
         initial_collateral_amount: uint256 = empty(uint256)
@@ -437,7 +436,7 @@ def onFlashLoan(
             (address, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256),
         )
 
-        self._on_open_leveraged_trove(
+        self.on_open_leveraged_trove(
             owner,
             owner_index,
             initial_collateral_amount,
@@ -462,19 +461,18 @@ def onFlashLoan(
 
 
 @view
-def _check_caller_is_owner(trove_id: uint256):
+def check_caller_is_owner(trove_id: uint256):
     """
-    @notice Checks if the caller is the owner of the trove
+    @notice Internal view function that checks if the caller is the owner of the trove
     @param trove_id ID of the trove
     """
-    owner: address = staticcall TROVE_NFT.ownerOf(trove_id)
-    assert msg.sender == owner, "caller != owner"
+    assert msg.sender == staticcall TROVE_NFT.ownerOf(trove_id), "caller != owner"
 
 
 @view
-def _check_zapper_is_remove_manager_and_receiver(trove_id: uint256):
+def check_zapper_is_remove_manager_and_receiver(trove_id: uint256):
     """
-    @notice Checks if the zapper has the necessary privileges to act on a trove
+    @notice Internal view function that checks if the zapper has the necessary privileges to act on a trove
     @param trove_id ID of the trove
     """
     manager: address = empty(address)
@@ -489,9 +487,9 @@ def _check_zapper_is_remove_manager_and_receiver(trove_id: uint256):
 # ============================================================================================
 
 
-def _set_exchange(exchange: IExchange, is_collateral: bool):
+def set_exchange(exchange: IExchange, is_collateral: bool):
     """
-    @notice Sets the address of the exchange contract
+    @notice Internal function that sets the address of the exchange contract
     @param exchange Address of the exchange contract
     @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
     """
@@ -511,24 +509,25 @@ def _set_exchange(exchange: IExchange, is_collateral: bool):
     extcall paired_with.approve(exchange.address, max_value(uint256), default_return_value=True)
 
 
-def _swap(amount: uint256, is_collateral: bool, from_crvusd: bool) -> uint256:
+def swap(amount: uint256, is_collateral: bool, from_crvusd: bool, min_out: uint256 = 0) -> uint256:
     """
-    @notice Swaps between crvUSD and USDaf or the collateral token
+    @notice Internal function that swaps between crvUSD and USDaf or the collateral token
     @param amount Amount of tokens to swap
     @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
     @param from_crvusd True if swapping from crvUSD, False otherwise
+    @param min_out Minimum amount of tokens to receive from the swap. Defaults to 0
     @return Amount of tokens received
     """
     return (
-        extcall self.collateral_exchange.swap(amount, 0, from_crvusd)
+        extcall self.collateral_exchange.swap(amount, min_out, from_crvusd)
         if is_collateral
-        else extcall self.usdaf_exchange.swap(amount, 0, from_crvusd)
+        else extcall self.usdaf_exchange.swap(amount, min_out, from_crvusd)
     )
 
 
-def _return_leftovers(before: uint256):
+def return_leftovers(before: uint256):
     """
-    @notice Transfers back any leftover crvUSD to the user
+    @notice Internal function that transfers back any leftover crvUSD to the user
     @param before The crvUSD balance at the beginning of the operation
     """
     after: uint256 = staticcall CRVUSD.balanceOf(self)

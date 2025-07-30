@@ -26,6 +26,8 @@ abstract contract Base is Deploy, Test {
     IExchange public EXCHANGE;
     IFlashZapper public FLASH_ZAPPER;
 
+    address public constant CRVUSD_FLASH_LENDER = 0x26dE7861e213A5351F6ED767d00e0839930e9eE1;
+
     IERC20 public constant USDAF = IERC20(0x9Cf12ccd6020b6888e4D4C4e4c7AcA33c1eB91f8);
     IERC20 public constant CRVUSD = IERC20(0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E);
     IERC20 public constant WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);

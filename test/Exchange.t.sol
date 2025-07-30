@@ -56,6 +56,10 @@ contract ExchangeTests is Base {
 
         vm.startPrank(user);
         WRAPPED_COLLATERAL_TOKEN.approve(address(EXCHANGE), _amount);
+
+        vm.expectRevert("slippage rekt you");
+        EXCHANGE.swap(_amount, type(uint256).max, false);
+
         uint256 _amountOut = EXCHANGE.swap(_amount, 0, false);
         vm.stopPrank();
 
@@ -83,6 +87,10 @@ contract ExchangeTests is Base {
 
         vm.startPrank(user);
         CRVUSD.approve(address(EXCHANGE), _amount);
+
+        vm.expectRevert("slippage rekt you");
+        EXCHANGE.swap(_amount, type(uint256).max, true);
+
         uint256 _amountOut = EXCHANGE.swap(_amount, 0, true);
         vm.stopPrank();
 

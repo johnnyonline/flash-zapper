@@ -153,7 +153,7 @@ contract FlashZapperTests is Base {
         // Estimate flash loan & debt from capital + leverage ratio
         uint256 _capitalInUSD = (_amount * _price) / 1e18;
         uint256 _flashLoanAmountUSD = (_capitalInUSD * _leverageRatio / 1e18) - _capitalInUSD;
-        uint256 _debtToMint = _flashLoanAmountUSD * 102 / 100; // 5% slippage
+        uint256 _debtToMint = _flashLoanAmountUSD * 102 / 100; // 2% slippage
 
         // Get trove hints
         (uint256 _upperHint, uint256 _lowerHint) = _findHints();
@@ -302,7 +302,7 @@ contract FlashZapperTests is Base {
         assertApproxEqRel(_collateralAfter, _targetCollateral, 1e15, "check_leverDown: E1"); // 0.1% diff allowed
 
         // Check user balances
-        assertGe(USDAF.balanceOf(user), MIN_DEBT, "check_leverDown: E2");
+        assertGe(USDAF.balanceOf(user), MIN_DEBT, "check_leverDown: E2"); // leftovers
         assertEq(COLLATERAL_TOKEN.balanceOf(user), 0, "check_leverDown: E3");
         assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(user), 0, "check_leverDown: E4");
         assertGe(CRVUSD.balanceOf(user), 0, "check_leverDown: E5"); // leftovers
@@ -318,6 +318,9 @@ contract FlashZapperTests is Base {
         assertEq(COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E11");
         assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E12");
         assertEq(CRVUSD.balanceOf(address(EXCHANGE)), 0, "check_leverDown: E13");
+
+        // Check flash lender
+        assertEq(USDAF.balanceOf(CRVUSD_FLASH_LENDER), 0, "check_leverDown: E14");
     }
 
     // ============================================================================================
