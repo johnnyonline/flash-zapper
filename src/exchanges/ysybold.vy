@@ -160,13 +160,13 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     extcall YEARN_STAKED_BOLD.transferFrom(msg.sender, self, amount, default_return_value=True)
 
     # st-yBOLD --> BOLD
-    extcall YEARN_BOLD_ZAPPER.zapOut(amount, self, 0)  # maxLoss is 0
+    amount_out: uint256 = extcall YEARN_BOLD_ZAPPER.zapOut(amount, self, 0)  # maxLoss is 0
 
     # BOLD --> USDC
-    amount_out: uint256 = curve_stableswap.swap(
+    amount_out = curve_stableswap.swap(
         BOLD_INDEX_BOLD_USDC_CURVE_POOL,
         USDC_INDEX_BOLD_USDC_CURVE_POOL,
-        amount,
+        amount_out,
         USDC_BOLD_CURVE_POOL,
         self,
     )
