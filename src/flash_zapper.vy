@@ -493,7 +493,7 @@ def set_exchange(exchange: IExchange, is_collateral: bool):
     @param exchange Address of the exchange contract
     @param is_collateral True for the crvUSD/collateral exchange, False for the crvUSD/USDaf exchange
     """
-    # Chcek that the primary token is crvUSD
+    # Check that the primary token is crvUSD
     assert (staticcall exchange.TOKEN() == CRVUSD.address), "!token"
 
     # Check that the paired token is either the collateral token or USDaf

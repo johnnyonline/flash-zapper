@@ -103,8 +103,8 @@ def swap(amount: uint256, min_amount: uint256, from_token: bool) -> uint256:
 
 def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     """
-    @notice Swaps from USDaf to collateral
-    @param amount Amount of USDaf to swap
+    @notice Swaps from crvUSD to collateral
+    @param amount Amount of crvUSD to swap
     @param min_amount Minimum amount of collateral to receive
     @return Amount of collateral received
     """
@@ -130,10 +130,10 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
 
 def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     """
-    @notice Swaps from collateral to USDaf
+    @notice Swaps from collateral to crvUSD
     @param amount Amount of collateral to swap
-    @param min_amount Minimum amount of USDaf to receive
-    @return Amount of USDaf received
+    @param min_amount Minimum amount of crvUSD to receive
+    @return Amount of crvUSD received
     """
     # Pull sUSDS
     extcall SUSDS.transferFrom(msg.sender, self, amount, default_return_value=True)
