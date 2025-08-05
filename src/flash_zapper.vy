@@ -9,6 +9,7 @@
 
 from ethereum.ercs import IERC20
 
+from interfaces import IWETH
 from interfaces import IWrapper
 from interfaces import IExchange
 from interfaces import IERC3156FlashLender
@@ -118,6 +119,7 @@ def __init__(
 
 
 @external
+@payable
 def open_leveraged_trove(
     owner: address,
     owner_index: uint256,
@@ -151,7 +153,12 @@ def open_leveraged_trove(
         extcall IWrapper(COLLATERAL_TOKEN.address).depositFor(self, collateral_amount, default_return_value=True)
         collateral_amount *= 10**DECIMALS_DIFF
 
-    extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
+    if msg.value > 0:
+        assert msg.value == ETH_GAS_COMPENSATION, "!value"
+        extcall IWETH(WETH.address).deposit(value=ETH_GAS_COMPENSATION)
+    else:
+        extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
+
 
     # Cache crvUSD balance before
     before: uint256 = staticcall CRVUSD.balanceOf(self)

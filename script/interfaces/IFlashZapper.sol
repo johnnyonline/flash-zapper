@@ -13,7 +13,7 @@ interface IFlashZapper {
         uint256 lower_hint,
         uint256 annual_interest_rate,
         uint256 max_upfront_fee
-    ) external;
+    ) external payable;
 
     function lever_up_trove(
         uint256 trove_id,

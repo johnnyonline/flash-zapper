@@ -32,6 +32,11 @@ contract FlashZapperTests is Base {
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
+    function test_openLeveragedTrove_rawETH_ysybold(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(ysybold_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
+    }
+
     function test_leverUp_ysybold(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(ysybold_branchIndex);
         check_leverUp(_amount, _leverageRatio);
@@ -49,6 +54,11 @@ contract FlashZapperTests is Base {
     function test_openLeveragedTrove_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(scrvusd_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_openLeveragedTrove_rawETH_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(scrvusd_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
     }
 
     function test_leverUp_scrvusd(uint256 _amount, uint256 _leverageRatio) public {
@@ -70,6 +80,11 @@ contract FlashZapperTests is Base {
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
+    function test_openLeveragedTrove_rawETH_susds(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(susds_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
+    }
+
     function test_leverUp_susds(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(susds_branchIndex);
         check_leverUp(_amount, _leverageRatio);
@@ -87,6 +102,11 @@ contract FlashZapperTests is Base {
     function test_openLeveragedTrove_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(sfrxusd_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_openLeveragedTrove_rawETH_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(sfrxusd_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
     }
 
     function test_leverUp_sfrxusd(uint256 _amount, uint256 _leverageRatio) public {
@@ -108,6 +128,11 @@ contract FlashZapperTests is Base {
         check_openLeveragedTrove(_amount, _leverageRatio);
     }
 
+    function test_openLeveragedTrove_rawETH_tbtc(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(tbtc_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
+    }
+
     function test_leverUp_tbtc(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(tbtc_branchIndex);
         check_leverUp(_amount, _leverageRatio);
@@ -125,6 +150,11 @@ contract FlashZapperTests is Base {
     function test_openLeveragedTrove_wbtc(uint256 _amount, uint256 _leverageRatio) public {
         _setParams(wbtc18_branchIndex);
         check_openLeveragedTrove(_amount, _leverageRatio);
+    }
+
+    function test_openLeveragedTrove_rawETH_wbtc(uint256 _amount, uint256 _leverageRatio) public {
+        _setParams(wbtc18_branchIndex);
+        check_openLeveragedTrove_rawETH(_amount, _leverageRatio);
     }
 
     function test_leverUp_wbtc(uint256 _amount, uint256 _leverageRatio) public {
@@ -213,6 +243,92 @@ contract FlashZapperTests is Base {
         assertEq(COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove: E12");
         assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove: E13");
         assertEq(CRVUSD.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove: E14");
+    }
+
+    function check_openLeveragedTrove_rawETH(uint256 _amount, uint256 _leverageRatio) public {
+        _amount = bound(_amount, MIN_FUZZ, MAX_FUZZ);
+        _leverageRatio = bound(_leverageRatio, MIN_LEVERAGE, MAX_LEVERAGE);
+
+        // open a massive trove to make sure TCRBelowCCR is never hit
+        _openTrove(10_000_000 ether, whale);
+
+        (uint256 _price,) = IPriceOracle(PRICE_ORACLE).fetchPrice();
+
+        // Estimate flash loan & debt from capital + leverage ratio
+        uint256 _capitalInUSD = (_amount * _price) / 1e18;
+        uint256 _flashLoanAmountUSD = (_capitalInUSD * _leverageRatio / 1e18) - _capitalInUSD;
+        uint256 _debtToMint = _flashLoanAmountUSD * 102 / 100; // 2% slippage
+
+        // Get trove hints
+        (uint256 _upperHint, uint256 _lowerHint) = _findHints();
+
+        uint256 _initialCollateralAmount = _amount;
+
+        // Adjust for WBTC's decimals
+        if (address(COLLATERAL_TOKEN) == WBTC) _initialCollateralAmount /= 10 ** 10;
+
+        // Airdrop user collateral & gas compensation
+        airdrop(address(0), user, ETH_GAS_COMPENSATION); // raw ETH
+        airdrop(address(COLLATERAL_TOKEN), user, _initialCollateralAmount);
+        vm.startPrank(user);
+        COLLATERAL_TOKEN.approve(address(FLASH_ZAPPER), _initialCollateralAmount);
+
+        vm.expectRevert("!value");
+        FLASH_ZAPPER.open_leveraged_trove{value: ETH_GAS_COMPENSATION - 1}(
+            user,
+            block.timestamp, // owner_index
+            _initialCollateralAmount, // initial_collateral_amount
+            _flashLoanAmountUSD, // flash_loan_amount
+            _debtToMint, // usdaf_amount
+            _upperHint,
+            _lowerHint,
+            MIN_ANNUAL_INTEREST_RATE,
+            type(uint256).max // max_upfront_fee
+        );
+
+        // Call open_leveraged_trove
+        FLASH_ZAPPER.open_leveraged_trove{value: ETH_GAS_COMPENSATION}(
+            user,
+            block.timestamp, // owner_index
+            _initialCollateralAmount, // initial_collateral_amount
+            _flashLoanAmountUSD, // flash_loan_amount
+            _debtToMint, // usdaf_amount
+            _upperHint,
+            _lowerHint,
+            MIN_ANNUAL_INTEREST_RATE,
+            type(uint256).max // max_upfront_fee
+        );
+        vm.stopPrank();
+
+        // Trove ID should be predictable
+        uint256 _troveId = uint256(keccak256(abi.encode(address(FLASH_ZAPPER), user, block.timestamp)));
+
+        // Fetch resulting trove data
+        (uint256 _debtAfter, uint256 _collateralAfter) = _getTroveData(_troveId);
+
+        uint256 _expectedCollateral = _amount + (_flashLoanAmountUSD * 1e18 / _price);
+        uint256 _expectedDebt = _debtToMint;
+
+        assertApproxEqRel(_collateralAfter, _expectedCollateral, 3e16, "check_openLeveragedTrove_rawETH: E0"); // 3% diff allowed
+        assertApproxEqRel(_debtAfter, _expectedDebt, 2e15, "check_openLeveragedTrove_rawETH: E1"); // 0.2% diff allowed
+
+        // Check user balances
+        assertEq(USDAF.balanceOf(user), 0, "check_openLeveragedTrove_rawETH: E3");
+        assertEq(COLLATERAL_TOKEN.balanceOf(user), 0, "check_openLeveragedTrove_rawETH: E4");
+        assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(user), 0, "check_openLeveragedTrove_rawETH: E5");
+        assertGe(CRVUSD.balanceOf(user), 0, "check_openLeveragedTrove_rawETH: E6"); // leftovers
+
+        // Check zapper balances
+        assertEq(USDAF.balanceOf(address(FLASH_ZAPPER)), 0, "check_openLeveragedTrove_rawETH: E7");
+        assertEq(COLLATERAL_TOKEN.balanceOf(address(FLASH_ZAPPER)), 0, "check_openLeveragedTrove_rawETH: E8");
+        assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(address(FLASH_ZAPPER)), 0, "check_openLeveragedTrove_rawETH: E9");
+        assertEq(CRVUSD.balanceOf(address(FLASH_ZAPPER)), 0, "check_openLeveragedTrove_rawETH: E10");
+
+        // Check exchange
+        assertEq(USDAF.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove_rawETH: E11");
+        assertEq(COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove_rawETH: E12");
+        assertEq(WRAPPED_COLLATERAL_TOKEN.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove_rawETH: E13");
+        assertEq(CRVUSD.balanceOf(address(EXCHANGE)), 0, "check_openLeveragedTrove_rawETH: E14");
     }
 
     function check_leverUp(uint256 _amount, uint256 _leverageRatio) public returns (uint256 _troveId) {
