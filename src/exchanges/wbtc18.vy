@@ -177,7 +177,7 @@ def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
     amount_out = curve_tricrypto.swap(
         TBTC_INDEX_TRICRYPTO,
         CRVUSD_INDEX_TRICRYPTO,
-        amount,
+        amount_out,
         TRICRYPTO_POOL,
         msg.sender,
     )
