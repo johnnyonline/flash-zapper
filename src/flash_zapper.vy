@@ -159,8 +159,6 @@ def open_leveraged_trove(
     else:
         extcall WETH.transferFrom(msg.sender, self, ETH_GAS_COMPENSATION, default_return_value=True)
 
-
-    # Cache crvUSD balance before
     before: uint256 = staticcall CRVUSD.balanceOf(self)
 
     # Prepare calldata for the flash loan
