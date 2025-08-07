@@ -249,3 +249,22 @@ contract Deploy is Script {
     }
 
 }
+
+// Collateral token:  ysybold
+// Exchange address:  0x82CBd5C2B1a23f82E446dd2c8Bea02a71Ae631b3
+// Flash Zapper address:  0xf97f41F003a5b51aBd62Aadec12445cE47c96C8C
+// Collateral token:  scrvusd
+// Exchange address:  0x78eBd6Ae7b6a12aB35A7454039fEa117000bfD99
+// Flash Zapper address:  0x07B152f14e53A4B24bf0e513A9743539eFAead67
+// Collateral token:  susds
+// Exchange address:  0xD76B140c9e9fe3e9b176b1E99FD0ea78F7889bF2
+// Flash Zapper address:  0x982e607B6495a63ffC715f694ED3211Cb38B6Fe2
+// Collateral token:  sfrxusd
+// Exchange address:  0x188384C7EC63dA76a39EC1Ec1c6cC7a2ED345919
+// Flash Zapper address:  0x0502dBE106d80577b156b0679342A11dCa91b072
+// Collateral token:  tbtc
+// Exchange address:  0x3470A0B127C41273D17c0647CE24354bCfc2cbdE
+// Flash Zapper address:  0x1A3f5EBaAF0702ec2A707CBD28B397Dc4DCa4BAa
+// Collateral token:  wbtc18
+// Exchange address:  0x920f99Fe3D47CacAd5b2021Af494bF4f8914aa30
+// Flash Zapper address:  0x8B2754De2e814c7Fdbf86C8464EE575D1f6ae07F
