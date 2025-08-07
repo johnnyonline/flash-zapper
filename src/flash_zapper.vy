@@ -134,6 +134,7 @@ def open_leveraged_trove(
     """
     @notice Opens a leveraged trove using a flash loan
     @dev Adds this contract as add/receive manager to be able to fully adjust trove
+    @dev To use native ETH for gas compensation, transfer exactly ETH_GAS_COMPENSATION amount
     @param owner Address of the trove owner
     @param owner_index Index of the trove owner in the trove index
     @param initial_collateral_amount Amount of collateral to pull from the user, will be added to the trove

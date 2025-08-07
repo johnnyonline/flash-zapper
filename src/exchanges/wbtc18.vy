@@ -104,7 +104,7 @@ def swap(amount: uint256, min_amount: uint256, from_token: bool) -> uint256:
     @param from_token If true, swap from crvUSD to the paired token, otherwise swap from the paired token to crvUSD
     @return Amount of tokens received
     """
-    return (self._swap_from(amount, min_amount) if from_token else self._swap_to(amount, min_amount))
+    return (self.swap_from(amount, min_amount) if from_token else self.swap_to(amount, min_amount))
 
 
 # ============================================================================================
@@ -112,7 +112,7 @@ def swap(amount: uint256, min_amount: uint256, from_token: bool) -> uint256:
 # ============================================================================================
 
 
-def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
+def swap_from(amount: uint256, min_amount: uint256) -> uint256:
     """
     @notice Swaps from token to collateral
     @param amount Amount of token to swap
@@ -149,7 +149,7 @@ def _swap_from(amount: uint256, min_amount: uint256) -> uint256:
     return amount_out
 
 
-def _swap_to(amount: uint256, min_amount: uint256) -> uint256:
+def swap_to(amount: uint256, min_amount: uint256) -> uint256:
     """
     @notice Swaps from collateral to token
     @param amount Amount of collateral to swap
